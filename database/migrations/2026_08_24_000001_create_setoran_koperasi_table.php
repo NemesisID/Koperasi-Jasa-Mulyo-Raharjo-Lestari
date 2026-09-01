@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('setoran_koperasi', function (Blueprint $table) {
             $table->string('id', 36)->primary(); // Generate from Backend!
-            $table->string('user_id', 36);
+            $table->foreignId('user_id');
             $table->enum('jenis', ['PEMASUKAN', 'PENGELUARAN']);
             $table->decimal('jumlah', 12, 2);
             $table->enum('status', ['PENDING', 'PROSES', 'SELESAI', 'BATAL'])->default('PENDING');

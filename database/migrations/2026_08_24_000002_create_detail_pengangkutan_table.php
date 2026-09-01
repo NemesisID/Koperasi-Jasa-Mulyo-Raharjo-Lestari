@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('detail_pengangkutan', function (Blueprint $table) {
             $table->string('id', 36)->primary(); // Generate from Backend!
-            $table->string('user_id', 36);
+            $table->foreignId('user_id');
             $table->dateTime('jadwal_angkut');
             $table->decimal('total_organik', 8, 2)->default(0);
             $table->decimal('total_anorganik', 8, 2)->default(0);
