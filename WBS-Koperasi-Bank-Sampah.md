@@ -68,7 +68,9 @@ Agar Tim Frontend dapat bekerja secara paralel dengan Tim Backend (menggunakan *
 
 ## 3. WBS REPOSITORY 1: BACKEND (Laravel 11 Web Service)
 
-**Fokus:** REST API, Database, Business Logic, Validation, Authentication, dan Background Jobs.
+**Fokus:** REST API, Database, Business Logic, Validation, Authentication, dan Background Jobs.  
+**Spesifikasi Detail Route & Payload API:** Lihat panduan lengkap di [route-api.md](file:///c:/laragon/www/Koperasi-Jasa-Mulyo-Raharjo-Lestari/route-api.md)  
+**Rencana Implementasi & Task Breakdown Detail:** Ikuti panduan arsitektur layer di [implementation-plan-backend.md](file:///c:/laragon/www/Koperasi-Jasa-Mulyo-Raharjo-Lestari/implementation-plan-backend.md) berdasarkan aturan [be-architecture.md](file:///c:/laragon/www/Koperasi-Jasa-Mulyo-Raharjo-Lestari/be-architecture.md)
 
 ### BAGIAN BE-1: Environment Setup, Database & Autentikasi Sanctum (Sprint 1)
 | Kode Task | Nama Task / Modul | Deskripsi Pekerjaan Teknis | Deliverable |

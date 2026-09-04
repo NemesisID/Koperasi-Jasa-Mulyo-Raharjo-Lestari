@@ -14,11 +14,15 @@ class Pickup extends Model
     protected $fillable = [
         'officer_id',
         'member_id',
+        'location_type',
         'is_sorted',
         'scheduled_at',
         'completed_at',
         'status',
         'notes',
+        'total_gross',
+        'total_fee',
+        'total_net',
     ];
 
     protected function casts(): array

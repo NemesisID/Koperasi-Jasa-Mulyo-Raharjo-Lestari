@@ -12,6 +12,8 @@ class TrashCategory extends Model
 
     protected $fillable = [
         'name',
+        'type',
+        'unit',
         'price_sorted',
         'price_unsorted',
         'is_active',
@@ -29,6 +31,11 @@ class TrashCategory extends Model
     public function pickupItems(): HasMany
     {
         return $this->hasMany(PickupItem::class, 'category_id');
+    }
+
+    public function priceChangeLogs(): HasMany
+    {
+        return $this->hasMany(PriceChangeLog::class);
     }
 
     public function scopeActive($query)
