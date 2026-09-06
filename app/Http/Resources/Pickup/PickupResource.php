@@ -31,7 +31,7 @@ class PickupResource extends JsonResource
             'notes' => $this->notes,
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'id' => $item->id,
-                'category' => $item->whenLoaded('category', fn () => $item->category?->only(['id', 'name', 'type', 'unit'])),
+                'category' => $item->relationLoaded('category') ? $item->category?->only(['id', 'name', 'type', 'unit']) : null,
                 'weight_kg' => $item->weight_kg,
                 'unit_count' => $item->unit_count,
                 'total_value' => $item->total_value,

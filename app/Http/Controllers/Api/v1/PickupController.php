@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Pickup\CancelPickupRequest;
 use App\Http\Requests\Pickup\CreatePickupTicketRequest;
 use App\Http\Requests\Pickup\SubmitWeighItemsRequest;
 use App\Http\Resources\Pickup\PickupResource;
@@ -102,10 +103,8 @@ class PickupController extends Controller
     /**
      * PATCH /api/v1/pickups/{id}/cancel
      */
-    public function cancel(Request $request, int $id): JsonResponse
+    public function cancel(CancelPickupRequest $request, int $id): JsonResponse
     {
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
-
         $pickup = $this->weighingService->cancelPickup($id, $request->validated('reason'));
 
         return response()->json([

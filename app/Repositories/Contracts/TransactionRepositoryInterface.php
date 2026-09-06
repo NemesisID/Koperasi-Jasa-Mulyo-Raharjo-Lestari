@@ -3,9 +3,15 @@
 namespace App\Repositories\Contracts;
 
 use App\Models\Transaction;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface TransactionRepositoryInterface
 {
+    /**
+     * Jurnal umum kas (filter type / member / rentang tanggal).
+     */
+    public function paginate(array $filters): LengthAwarePaginator;
+
     /**
      * Catat transaksi kas baru (transaction_code di-generate otomatis jika tidak ada).
      */
