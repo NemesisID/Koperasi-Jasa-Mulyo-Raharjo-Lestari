@@ -1,0 +1,1057 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Koperasi Jasa Mulyo Raharjo Lestari — API",
+    "version": "1.0.0",
+    "description": "RESTful API Sistem Informasi Koperasi & Bank Sampah.\n\n**Autentikasi:** Bearer Token Sanctum — `Authorization: Bearer <token>`\n\n**Header wajib:** `Accept: application/json`, `Content-Type: application/json`\n\n**Format respon standar:**\n```json\n{\n  \"success\": true,\n  \"message\": \"Deskripsi pesan\",\n  \"data\": { },\n  \"meta\": { \"total\": 100, \"page\": 1, \"per_page\": 15 }\n}\n```\n\nSemua endpoint selain yang ditandai Publik membutuhkan token Sanctum. Role: `ketua`, `pengurus`, `petugas`, `anggota`."
+  },
+  "servers": [
+    { "url": "/api/v1" }
+  ],
+  "security": [{ "BearerAuth": [] }],
+  "tags": [
+    { "name": "Auth", "description": "Autentikasi & profil pengguna" },
+    { "name": "Users", "description": "Manajemen pengguna internal (ketua/pengurus/petugas)" },
+    { "name": "Keanggotaan", "description": "Master data kategori & anggota" },
+    { "name": "Katalog Sampah", "description": "Katalog sampah & manajemen harga" },
+    { "name": "Penjemputan", "description": "Operasional bank sampah: penjemputan & timbang" },
+    { "name": "Pengaduan", "description": "Pengaduan & komplain nota timbang" },
+    { "name": "Keuangan", "description": "Kategori keuangan, simpanan, transaksi kas" },
+    { "name": "Dompet", "description": "Saldo anggota & penarikan tunai" },
+    { "name": "SHU", "description": "Kalkulasi & pembagian SHU tahunan" },
+    { "name": "Logistik", "description": "Wilayah & rekapitulasi pengangkutan" },
+    { "name": "Laporan", "description": "Laporan eksekutif & analitik" }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login",
+        "description": "Autentikasi dengan username/email + password, mengembalikan Sanctum token. Rate limit 10x/menit.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LoginRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Token & data user",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" }, "example": { "success": true, "message": "Login berhasil", "data": { "token": "1|abcdef...", "user": { "id": 1, "name": "Budi", "role": "anggota" } } } } }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/register-member": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registrasi mandiri calon anggota",
+        "description": "Registrasi calon anggota baru (status awal pending simpanan pokok). Rate limit 5x/menit.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterMemberRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "User & member dibuat",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Profil user yang login",
+        "description": "Profil pengguna yang sedang login beserta role & identitas member.",
+        "responses": {
+          "200": {
+            "description": "User & member profile",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          }
+        }
+      }
+    },
+    "/auth/profile": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Update profil",
+        "description": "Pembaruan informasi kontak profil mandiri.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateProfileRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "User ter-update",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/change-password": {
+      "put": {
+        "tags": ["Auth"],
+        "summary": "Ganti password",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePasswordRequest" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "Password berhasil diganti",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout",
+        "description": "Mencabut (revoke) Sanctum personal access token saat ini.",
+        "responses": {
+          "200": {
+            "description": "Token dicabut",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          }
+        }
+      }
+    },
+
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Daftar pengguna",
+        "description": "Daftar pengguna sistem. Role: ketua, pengurus.",
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "type": "string" }, "description": "Filter role, mis. `petugas`" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Cari nama/username/email" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar user (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Users"],
+        "summary": "Buat akun internal",
+        "description": "Buat akun pengurus/petugas. Role: ketua.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "User dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Users"],
+        "summary": "Detail pengguna",
+        "description": "Detail informasi akun pengguna. Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Detail user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update pengguna",
+        "description": "Update data akun pengguna internal. Role: ketua.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserUpdateRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "User ter-update", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Hapus pengguna",
+        "description": "Nonaktifkan / hapus akun pengguna sistem. Role: ketua.",
+        "responses": {
+          "200": { "description": "User dihapus", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+
+    "/member-categories": {
+      "get": {
+        "tags": ["Keanggotaan"],
+        "summary": "Daftar kategori anggota",
+        "description": "Daftar kategori anggota (Biasa, Inti, Mitra). Role: ketua, pengurus, petugas.",
+        "responses": {
+          "200": { "description": "Daftar kategori", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Keanggotaan"],
+        "summary": "Buat kategori anggota",
+        "description": "Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string", "example": "Anggota Inti" } } } } }
+        },
+        "responses": {
+          "201": { "description": "Kategori dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "tags": ["Keanggotaan"],
+        "summary": "Daftar anggota",
+        "description": "Daftar anggota. Role: ketua, pengurus, petugas.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["aktif", "nonaktif", "suspend", "pending"] } },
+          { "name": "category_id", "in": "query", "schema": { "type": "integer" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Cari nama / kode anggota" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar anggota (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Keanggotaan"],
+        "summary": "Buat anggota",
+        "description": "Registrasi anggota oleh pengurus. `member_code` digenerate otomatis (`MBR-202609-XXXX`). Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MemberStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Member dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/members/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Keanggotaan"],
+        "summary": "Detail anggota",
+        "description": "Detail profil anggota, status simpanan pokok, dan rekap partisipasi bank sampah. Role: ketua, pengurus, petugas, anggota (hanya milik sendiri).",
+        "responses": {
+          "200": { "description": "Detail member", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Keanggotaan"],
+        "summary": "Update anggota",
+        "description": "Update informasi profil anggota. Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MemberUpdateRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Member ter-update", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/members/{id}/status": {
+      "patch": {
+        "tags": ["Keanggotaan"],
+        "summary": "Ubah status anggota",
+        "description": "Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["aktif", "nonaktif", "suspend"] } }, "notes": { "type": "string", "description": "Alasan perubahan status" } } } }
+        },
+        "responses": {
+          "200": { "description": "Status diubah", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+
+    "/trash-categories": {
+      "get": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Katalog sampah",
+        "description": "Publik (tanpa login). Seluruh katalog sampah.",
+        "security": [],
+        "parameters": [
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["organik", "anorganik", "campur"] } },
+          { "name": "is_active", "in": "query", "schema": { "type": "integer", "enum": [0, 1] } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar kategori sampah", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Buat kategori sampah",
+        "description": "Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TrashCategoryRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Kategori dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/trash-categories/board": {
+      "get": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Papan info harga terkini",
+        "description": "Publik (tanpa login). Harga sampah hari ini, fluktuasi naik/turun, dan tarif antar gudang vs jemput.",
+        "security": [],
+        "responses": {
+          "200": { "description": "Papan harga", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/trash-categories/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Detail kategori sampah",
+        "responses": {
+          "200": { "description": "Detail kategori", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "put": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Update kategori sampah",
+        "description": "Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TrashCategoryRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Kategori ter-update", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/trash-categories/{id}/price": {
+      "patch": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Quick update harga harian",
+        "description": "Otomatis mencatat log audit perubahan harga. Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "price_sorted": { "type": "number", "example": 5000 }, "price_unsorted": { "type": "number", "example": 2200 }, "notes": { "type": "string", "example": "Update WA paguyuban" } } } } }
+        },
+        "responses": {
+          "200": { "description": "Harga ter-update", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/trash-categories/{id}/price-history": {
+      "get": {
+        "tags": ["Katalog Sampah"],
+        "summary": "Riwayat harga",
+        "description": "Riwayat audit fluktuasi harga (siapa mengubah, nominal lama, nominal baru, tanggal). Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": { "description": "Riwayat harga", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+
+    "/pickups": {
+      "get": {
+        "tags": ["Penjemputan"],
+        "summary": "Daftar penjemputan",
+        "description": "Daftar order/jadwal penjemputan sampah. Role: ketua, pengurus, petugas.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "mis. `menunggu`, `selesai`" },
+          { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar pickup (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Penjemputan"],
+        "summary": "Buat tiket setor/jemput sampah",
+        "description": "Role: ketua, pengurus, petugas, anggota.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PickupStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Pickup dibuat, mengembalikan `pickup_id`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/pickups/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Penjemputan"],
+        "summary": "Detail penjemputan",
+        "description": "Detail transaksi penjemputan & rincian item timbangan. Role: ketua, pengurus, petugas, anggota (milik sendiri).",
+        "responses": {
+          "200": { "description": "Detail pickup", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/pickups/{id}/weigh-items": {
+      "post": {
+        "tags": ["Penjemputan"],
+        "summary": "Input timbangan & kalkulasi real-time",
+        "description": "Business logic otomatis: (1) hitung nilai bruto dari tarif hari ini, (2) potongan 20% biaya koperasi, (3) saldo bersih dikreditkan ke saldo anggota, (4) status pickup jadi `selesai`. Role: ketua, pengurus, petugas.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WeighItemsRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Mengembalikan `pickup`, `items`, `net_earned`, `receipt_number`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/pickups/{id}/receipt": {
+      "get": {
+        "tags": ["Penjemputan"],
+        "summary": "Nota digital timbang",
+        "description": "Detail nota timbang: QR Code URL, nominal kotor, potongan 20%, saldo bersih masuk. Role: ketua, pengurus, petugas, anggota (milik sendiri).",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": { "description": "Data nota", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/pickups/{id}/cancel": {
+      "patch": {
+        "tags": ["Penjemputan"],
+        "summary": "Batalkan transaksi timbang",
+        "description": "Batalkan transaksi jika terjadi kesalahan fatal (rollback saldo otomatis). Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": { "description": "Pickup dibatalkan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+
+    "/complaints": {
+      "get": {
+        "tags": ["Pengaduan"],
+        "summary": "Daftar komplain",
+        "description": "Daftar komplain (anggota hanya melihat miliknya). Role: ketua, pengurus, petugas, anggota.",
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "mis. `diajukan`, `proses`, `selesai`" },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar komplain (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Pengaduan"],
+        "summary": "Ajukan komplain nota",
+        "description": "Role: ketua, pengurus, petugas, anggota.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ComplaintStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Komplain dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/complaints/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "get": {
+        "tags": ["Pengaduan"],
+        "summary": "Detail komplain",
+        "description": "Detail komplain beserta lampiran foto dan riwayat catatan. Anggota hanya milik sendiri.",
+        "responses": {
+          "200": { "description": "Detail komplain", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      }
+    },
+    "/complaints/{id}/resolve": {
+      "patch": {
+        "tags": ["Pengaduan"],
+        "summary": "Resolusi komplain",
+        "description": "Jika diterima: otomatis update mutasi kas dan saldo anggota terkait. Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["status"], "properties": { "status": { "type": "string", "enum": ["diterima", "ditolak"] } }, "adjustment_amount": { "type": "number", "example": 15000 }, "resolution_note": { "type": "string", "example": "Revisi berat timbangan tembaga" } } } }
+        },
+        "responses": {
+          "200": { "description": "Komplain diselesaikan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+
+    "/finance-categories": {
+      "get": {
+        "tags": ["Keuangan"],
+        "summary": "Daftar kategori keuangan",
+        "description": "Kategori akun kas (`income`, `expense`, `simpanan_pokok`, `tipping_fee`, dll). Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Daftar kategori", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Keuangan"],
+        "summary": "Buat kategori keuangan",
+        "description": "Role: ketua.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["name", "type"], "properties": { "name": { "type": "string" }, "type": { "type": "string", "example": "income" } } } } }
+        },
+        "responses": {
+          "201": { "description": "Kategori dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/savings": {
+      "get": {
+        "tags": ["Keuangan"],
+        "summary": "Rekap simpanan",
+        "description": "Rekap simpanan seluruh anggota (anggota hanya miliknya). Role: ketua, pengurus, anggota.",
+        "parameters": [
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["POKOK", "WAJIB", "SUKARELA", "TIPPING"] } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["PENDING", "SELESAI"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Rekap simpanan (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/savings/pay": {
+      "post": {
+        "tags": ["Keuangan"],
+        "summary": "Catat pembayaran simpanan / tipping fee",
+        "description": "Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SavingsPayRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Pembayaran tercatat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/savings/billing-status": {
+      "get": {
+        "tags": ["Keuangan"],
+        "summary": "Status tagihan iuran bulanan",
+        "description": "Status tagihan iuran bulanan berjalan (Rp45.000: Rp5.000 wajib + Rp40.000 tipping) per anggota. Role: ketua, pengurus, anggota (milik sendiri).",
+        "responses": {
+          "200": { "description": "Status tagihan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/savings/generate-monthly-billing": {
+      "post": {
+        "tags": ["Keuangan"],
+        "summary": "Trigger tagihan massal bulanan",
+        "description": "Pembuatan tagihan massal untuk semua anggota aktif (biasanya dipicu scheduler cron bulanan). Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Tagihan digenerate", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "tags": ["Keuangan"],
+        "summary": "Jurnal umum kas",
+        "description": "Mutasi kas koperasi (pemasukan & pengeluaran). Role: ketua, pengurus.",
+        "parameters": [
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["income", "expense"] } },
+          { "name": "start_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "end_date", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Jurnal transaksi (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Keuangan"],
+        "summary": "Catat transaksi kas",
+        "description": "Pencatatan transaksi kas keluar/masuk umum. Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransactionStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Transaksi tercatat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+
+    "/wallet/summary": {
+      "get": {
+        "tags": ["Dompet"],
+        "summary": "Ringkasan saldo",
+        "description": "Saldo anggota saat ini (`current_balance`, `total_withdrawn`). Anggota: dompet sendiri; pengurus boleh query member lain.",
+        "responses": {
+          "200": { "description": "Ringkasan saldo", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/wallet/mutations": {
+      "get": {
+        "tags": ["Dompet"],
+        "summary": "Riwayat mutasi saldo",
+        "description": "Mutasi masuk (setor sampah, SHU) dan keluar (penarikan tunai). Anggota: milik sendiri; pengurus boleh query member.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Mutasi saldo (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/wallet/withdraw": {
+      "post": {
+        "tags": ["Dompet"],
+        "summary": "Pengajuan tarik saldo",
+        "description": "Role: anggota.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WithdrawRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Mengembalikan `withdraw_request_id`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/wallet/withdraw-requests": {
+      "get": {
+        "tags": ["Dompet"],
+        "summary": "Antrean permintaan penarikan",
+        "description": "Daftar permintaan penarikan saldo seluruh anggota. Role: ketua, pengurus.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar permintaan (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/wallet/withdraw-requests/{id}/approve": {
+      "patch": {
+        "tags": ["Dompet"],
+        "summary": "Konfirmasi eksekusi penarikan",
+        "description": "Mencatat transaksi pengeluaran kas koperasi & mengurangi saldo anggota. Role: ketua, pengurus.",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["action"], "properties": { "action": { "type": "string", "enum": ["approve", "reject"] } }, "proof_file": { "type": "string", "description": "Bukti transfer (file)" }, "notes": { "type": "string" } } } }
+        },
+        "responses": {
+          "200": { "description": "Permintaan diproses", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+
+    "/shu/periods": {
+      "get": {
+        "tags": ["SHU"],
+        "summary": "Riwayat periode SHU",
+        "description": "Riwayat periode pembagian SHU tahunan. Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Daftar periode", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/shu/simulate": {
+      "post": {
+        "tags": ["SHU"],
+        "summary": "Simulasi draft SHU tahunan",
+        "description": "Preview dividen per anggota (bobot simpanan + partisipasi sampah). Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["year", "net_profit"], "properties": { "year": { "type": "integer", "example": 2026 }, "net_profit": { "type": "number", "example": 50000000 }, "shu_pool_percentage": { "type": "number", "example": 20 } } } } }
+        },
+        "responses": {
+          "200": { "description": "Mengembalikan `simulation_result`, `total_distributed`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/shu/publish": {
+      "post": {
+        "tags": ["SHU"],
+        "summary": "Finalisasi & posting SHU",
+        "description": "Mengunci draft SHU dan mengkreditkan porsi dana ke saldo anggota secara massal. Role: ketua.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["shu_distribution_id"], "properties": { "shu_distribution_id": { "type": "integer", "example": 1 } } } } }
+        },
+        "responses": {
+          "200": { "description": "SHU dipublikasikan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/shu/my-history": {
+      "get": {
+        "tags": ["SHU"],
+        "summary": "Riwayat SHU anggota",
+        "description": "Riwayat dividen SHU tahunan beserta rincian perhitungan (jasa modal vs jasa anggota). Role: anggota.",
+        "responses": {
+          "200": { "description": "Riwayat SHU", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+
+    "/logistics/routes": {
+      "get": {
+        "tags": ["Logistik"],
+        "summary": "Log ritase pengangkutan",
+        "description": "Log armada pengangkutan per wilayah/desa/RT/RW. Role: ketua, pengurus, petugas.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Log ritase (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Logistik"],
+        "summary": "Catat ritase pengangkutan",
+        "description": "Role: ketua, pengurus, petugas.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/LogisticsStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Ritase tercatat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+
+    "/reports/dashboard-stats": {
+      "get": {
+        "tags": ["Laporan"],
+        "summary": "Statistik dashboard",
+        "description": "Widget angka: Total Kas, Saldo Mengendap, Tonase Sampah Bulan Ini, Jumlah Anggota Aktif. Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Statistik", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/reports/financial": {
+      "get": {
+        "tags": ["Laporan"],
+        "summary": "Laporan keuangan (neraca & laba rugi)",
+        "description": "Role: ketua, pengurus.",
+        "parameters": [
+          { "name": "period_start", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "period_end", "in": "query", "schema": { "type": "string", "format": "date" } }
+        ],
+        "responses": {
+          "200": { "description": "Laporan keuangan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/reports/trash-volume": {
+      "get": {
+        "tags": ["Laporan"],
+        "summary": "Rekap volume sampah",
+        "description": "Rekapitulasi tonase sampah per kategori dan wilayah RT/RW. Role: ketua, pengurus.",
+        "responses": {
+          "200": { "description": "Rekap volume", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      }
+    },
+    "/reports/export": {
+      "get": {
+        "tags": ["Laporan"],
+        "summary": "Download laporan (PDF/XLSX)",
+        "description": "Download berkas laporan resmi terfinalisasi. Role: ketua, pengurus.",
+        "parameters": [
+          { "name": "report_id", "in": "query", "required": true, "schema": { "type": "integer" } },
+          { "name": "type", "in": "query", "required": true, "schema": { "type": "string", "enum": ["pdf", "xlsx"] } }
+        ],
+        "responses": {
+          "200": { "description": "Berkas biner (PDF/XLSX)", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } }, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { "schema": { "type": "string", "format": "binary" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Sanctum personal access token"
+      }
+    },
+    "parameters": {
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "integer" }
+      }
+    },
+    "responses": {
+      "ValidationError": {
+        "description": "422 — Validasi gagal",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ValidationErrorEnvelope" },
+            "example": {
+              "success": false,
+              "message": "Validasi formulir penimbangan gagal.",
+              "errors": {
+                "items.0.weight_kg": ["Berat timbangan wajib diisi angka lebih besar dari 0."]
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "404 — Resource tidak ditemukan",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "description": "Format respon standar; isi `data` berbeda per endpoint (lihat deskripsi operasi).",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "OK" },
+          "data": { "type": "object", "additionalProperties": true },
+          "meta": { "type": "object", "nullable": true, "properties": { "total": { "type": "integer" }, "page": { "type": "integer" }, "per_page": { "type": "integer" } } }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string" },
+          "errors": { "type": "object", "nullable": true }
+        }
+      },
+      "ValidationErrorEnvelope": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string" },
+          "errors": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["identity", "password"],
+        "properties": {
+          "identity": { "type": "string", "description": "Username atau email", "example": "budi@mail.com" },
+          "password": { "type": "string", "format": "password" },
+          "device_name": { "type": "string", "example": "react_spa" }
+        }
+      },
+      "RegisterMemberRequest": {
+        "type": "object",
+        "required": ["name", "email", "username", "password", "nik"],
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "username": { "type": "string" },
+          "password": { "type": "string", "format": "password" },
+          "phone": { "type": "string" },
+          "address": { "type": "string" },
+          "nik": { "type": "string", "description": "Nomor Induk Kependudukan" }
+        }
+      },
+      "UpdateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "phone": { "type": "string" },
+          "address": { "type": "string" },
+          "avatar": { "type": "string", "description": "File gambar avatar" }
+        }
+      },
+      "ChangePasswordRequest": {
+        "type": "object",
+        "required": ["current_password", "new_password", "new_password_confirmation"],
+        "properties": {
+          "current_password": { "type": "string", "format": "password" },
+          "new_password": { "type": "string", "format": "password" },
+          "new_password_confirmation": { "type": "string", "format": "password" }
+        }
+      },
+      "UserStoreRequest": {
+        "type": "object",
+        "required": ["name", "username", "email", "password", "role"],
+        "properties": {
+          "name": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "format": "password" },
+          "role": { "type": "string", "enum": ["pengurus", "petugas"] },
+          "address": { "type": "string" }
+        }
+      },
+      "UserUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["pengurus", "petugas"] },
+          "address": { "type": "string" },
+          "is_active": { "type": "boolean" }
+        }
+      },
+      "MemberStoreRequest": {
+        "type": "object",
+        "required": ["user_id", "member_category_id", "name", "join_date"],
+        "properties": {
+          "user_id": { "type": "integer" },
+          "member_category_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "phone": { "type": "string" },
+          "join_date": { "type": "string", "format": "date" }
+        }
+      },
+      "MemberUpdateRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "phone": { "type": "string" },
+          "member_category_id": { "type": "integer" }
+        }
+      },
+      "TrashCategoryRequest": {
+        "type": "object",
+        "required": ["name", "type", "unit"],
+        "properties": {
+          "name": { "type": "string", "example": "PET Botol Bening" },
+          "type": { "type": "string", "enum": ["organik", "anorganik", "campur"] },
+          "unit": { "type": "string", "example": "kg" },
+          "price_sorted": { "type": "number", "example": 5000 },
+          "price_unsorted": { "type": "number", "example": 2200 },
+          "price_pickup_deduction": { "type": "number", "description": "Potongan tarif untuk penjemputan vs antar gudang" },
+          "is_active": { "type": "boolean" }
+        }
+      },
+      "PickupStoreRequest": {
+        "type": "object",
+        "required": ["member_id", "scheduled_at", "location_type"],
+        "properties": {
+          "member_id": { "type": "integer" },
+          "scheduled_at": { "type": "string", "format": "date-time" },
+          "location_type": { "type": "string", "enum": ["gudang", "jemput_rumah"] },
+          "notes": { "type": "string" }
+        }
+      },
+      "WeighItemsRequest": {
+        "type": "object",
+        "required": ["items"],
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["category_id"],
+              "properties": {
+                "category_id": { "type": "integer", "example": 1 },
+                "weight_kg": { "type": "number", "example": 15.5, "description": "Untuk sampah per kg" },
+                "unit_count": { "type": "integer", "example": 0, "description": "Untuk sampah per unit (mis. elektronik)" }
+              }
+            }
+          }
+        }
+      },
+      "ComplaintStoreRequest": {
+        "type": "object",
+        "required": ["pickup_id", "issue_type", "description"],
+        "properties": {
+          "pickup_id": { "type": "integer" },
+          "issue_type": { "type": "string", "enum": ["berat_salah", "kategori_salah", "harga_salah"] },
+          "description": { "type": "string" },
+          "proof_image": { "type": "string", "description": "File foto bukti" }
+        }
+      },
+      "SavingsPayRequest": {
+        "type": "object",
+        "required": ["member_id", "label", "jumlah", "metode"],
+        "properties": {
+          "user_id": { "type": "integer" },
+          "member_id": { "type": "integer" },
+          "label": { "type": "string", "enum": ["POKOK", "WAJIB", "TIPPING", "SUKARELA"] },
+          "jumlah": { "type": "number", "example": 45000 },
+          "metode": { "type": "string", "enum": ["tunai", "transfer"] },
+          "catatan": { "type": "string" }
+        }
+      },
+      "TransactionStoreRequest": {
+        "type": "object",
+        "required": ["category_id", "type", "amount"],
+        "properties": {
+          "category_id": { "type": "integer" },
+          "type": { "type": "string", "enum": ["income", "expense"] },
+          "amount": { "type": "number" },
+          "description": { "type": "string" },
+          "payment_method": { "type": "string", "enum": ["tunai", "transfer"] }
+        }
+      },
+      "WithdrawRequest": {
+        "type": "object",
+        "required": ["amount", "method"],
+        "properties": {
+          "amount": { "type": "number", "example": 100000 },
+          "method": { "type": "string", "enum": ["tunai", "transfer"] },
+          "bank_name": { "type": "string" },
+          "account_number": { "type": "string" },
+          "account_holder": { "type": "string" }
+        }
+      },
+      "LogisticsStoreRequest": {
+        "type": "object",
+        "required": ["jadwal_angkut", "kecamatan", "desa"],
+        "properties": {
+          "jadwal_angkut": { "type": "string", "format": "date-time" },
+          "total_organik": { "type": "number", "description": "Kg sampah organik" },
+          "total_anorganik": { "type": "number", "description": "Kg sampah anorganik" },
+          "kecamatan": { "type": "string" },
+          "desa": { "type": "string" },
+          "dusun": { "type": "string" },
+          "rw": { "type": "string" },
+          "rt": { "type": "string" },
+          "alamat": { "type": "string" }
+        }
+      }
+    }
+  }
+}
