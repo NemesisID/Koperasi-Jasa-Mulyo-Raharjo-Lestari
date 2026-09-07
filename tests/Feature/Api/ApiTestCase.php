@@ -44,7 +44,7 @@ abstract class ApiTestCase extends TestCase
         ]);
 
         if ($role === 'anggota') {
-            $category = MemberCategory::create(['name' => 'Anggota Biasa']);
+            $category = MemberCategory::create(['name' => 'rumah']);
             $member = Member::create([
                 'user_id' => $user->id,
                 'member_category_id' => $category->id,

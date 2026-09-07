@@ -57,9 +57,9 @@ class MemberRepository implements MemberRepositoryInterface
         return $prefix.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
     }
 
-    public function getDefaultCategoryId(): ?int
+    public function getTypeCategoryId(string $type): ?int
     {
-        return MemberCategory::where('name', 'Anggota Biasa')->value('id')
+        return MemberCategory::where('name', $type)->value('id')
             ?? MemberCategory::query()->orderBy('id')->value('id');
     }
 

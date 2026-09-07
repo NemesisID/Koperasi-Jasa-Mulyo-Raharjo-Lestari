@@ -60,7 +60,7 @@ class AuthService
 
             $member = $this->memberRepository->create([
                 'user_id' => $user->id,
-                'member_category_id' => $this->memberRepository->getDefaultCategoryId(),
+                'member_category_id' => $this->memberRepository->getTypeCategoryId($data['member_type']),
                 'member_code' => $this->memberRepository->generateMemberCode(),
                 'name' => $data['name'],
                 'address' => $data['address'],

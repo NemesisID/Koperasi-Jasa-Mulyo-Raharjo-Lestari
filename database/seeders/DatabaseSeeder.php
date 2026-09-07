@@ -51,14 +51,13 @@ class DatabaseSeeder extends Seeder
             'address' => 'RT 02 RW 01 Dusun Mulyo',
         ]);
 
-        // 2. Kategori Anggota & Profil Member
-        $catInti = MemberCategory::create(['name' => 'Anggota Inti']);
-        $catBiasa = MemberCategory::create(['name' => 'Anggota Biasa']);
-        $catMitra = MemberCategory::create(['name' => 'Mitra Komunitas']);
+        // 2. Kategori Anggota (jenis member: rumah / pasar) & Profil Member
+        $catRumah = MemberCategory::create(['name' => 'rumah']);
+        MemberCategory::create(['name' => 'pasar']);
 
         $memberWarga = Member::create([
             'user_id' => $userWarga->id,
-            'member_category_id' => $catBiasa->id,
+            'member_category_id' => $catRumah->id,
             'member_code' => 'MBR-202609-0001',
             'name' => $userWarga->name,
             'address' => $userWarga->address,

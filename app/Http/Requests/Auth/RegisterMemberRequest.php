@@ -23,6 +23,7 @@ class RegisterMemberRequest extends FormRequest
             'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._]+$/', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::min(8)],
+            'member_type' => ['required', Rule::in(['rumah', 'pasar'])],
             'phone' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s]+$/'],
             'address' => ['required', 'string', 'max:500'],
             'nik' => ['nullable', 'string', 'digits:16'],
@@ -41,6 +42,7 @@ class RegisterMemberRequest extends FormRequest
             'email.unique' => 'Email sudah terdaftar.',
             'password.required' => 'Password wajib diisi.',
             'password.min' => 'Password minimal 8 karakter.',
+            'member_type.in' => 'Jenis member harus rumah atau pasar.',
             'phone.required' => 'Nomor telepon wajib diisi.',
             'address.required' => 'Alamat wajib diisi.',
         ];

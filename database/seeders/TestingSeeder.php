@@ -54,7 +54,7 @@ class TestingSeeder extends Seeder
 
             return Member::create([
                 'user_id' => $user->id,
-                'member_category_id' => rand(1, 3),
+                'member_category_id' => rand(1, 2),
                 'member_code' => $a['code'],
                 'name' => $a['name'],
                 'address' => $user->address,

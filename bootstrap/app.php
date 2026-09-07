@@ -27,12 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
         ]);
 
-        $middleware->web(append: [
-            \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
-        ]);
-
-        // State-less REST API
+        // State-less REST API — tanpa middleware frontend (Inertia/Vite)
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         

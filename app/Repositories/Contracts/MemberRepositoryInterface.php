@@ -35,9 +35,9 @@ interface MemberRepositoryInterface
     public function generateMemberCode(): string;
 
     /**
-     * Ambil id kategori anggota default untuk registrasi mandiri.
+     * Ambil id kategori anggota berdasarkan jenis member (rumah/pasar).
      */
-    public function getDefaultCategoryId(): ?int;
+    public function getTypeCategoryId(string $type): ?int;
 
     /**
      * Daftar seluruh kategori anggota.
