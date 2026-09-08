@@ -72,6 +72,8 @@ class TrashCategoryService
                     'unit' => $category->unit,
                     'price_sorted' => $category->price_sorted,
                     'price_unsorted' => $category->price_unsorted,
+                    'price_sell' => $category->price_sell,
+                    'price_member' => $category->price_member,
                     'pickup_price' => $this->pickupPrice($category, false),
                     'pickup_deduction' => $deduction,
                     'trend' => $this->resolveTrend($category),

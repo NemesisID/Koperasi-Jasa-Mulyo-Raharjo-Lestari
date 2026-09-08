@@ -31,13 +31,13 @@ Route::prefix('v1')->group(function () {
         });
     });
 
-    // Manajemen pengguna internal (ketua/pengurus/petugas)
+    // Manajemen pengguna internal (ketua/pengurus/petugas) — kelola dari portal pengurus
     Route::prefix('users')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [UserController::class, 'index'])->middleware('role:ketua,pengurus');
-        Route::post('/', [UserController::class, 'store'])->middleware('role:ketua');
+        Route::post('/', [UserController::class, 'store'])->middleware('role:ketua,pengurus');
         Route::get('/{id}', [UserController::class, 'show'])->middleware('role:ketua,pengurus');
-        Route::put('/{id}', [UserController::class, 'update'])->middleware('role:ketua');
-        Route::delete('/{id}', [UserController::class, 'destroy'])->middleware('role:ketua');
+        Route::put('/{id}', [UserController::class, 'update'])->middleware('role:ketua,pengurus');
+        Route::delete('/{id}', [UserController::class, 'destroy'])->middleware('role:ketua,pengurus');
     });
 
     // Master data keanggotaan
@@ -70,7 +70,7 @@ Route::prefix('v1')->group(function () {
 
     // Operasional bank sampah: penjemputan & timbang
     Route::prefix('pickups')->middleware('auth:sanctum')->group(function () {
-        Route::get('/', [PickupController::class, 'index'])->middleware('role:ketua,pengurus,petugas');
+        Route::get('/', [PickupController::class, 'index'])->middleware('role:ketua,pengurus,petugas,anggota');
         Route::post('/', [PickupController::class, 'store'])->middleware('role:ketua,pengurus,petugas,anggota');
         Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:ketua,pengurus,petugas');
         // Own-check untuk role anggota ada di controller (show/receipt)
@@ -98,6 +98,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [SavingsController::class, 'index'])->middleware('role:ketua,pengurus,anggota');
         Route::post('/pay', [SavingsController::class, 'pay'])->middleware('role:ketua,pengurus');
         Route::get('/billing-status', [SavingsController::class, 'billingStatus'])->middleware('role:ketua,pengurus,anggota');
+        Route::get('/wajib-overview', [SavingsController::class, 'wajibOverview'])->middleware('role:ketua,pengurus');
         Route::post('/generate-monthly-billing', [SavingsController::class, 'generateMonthlyBilling'])->middleware('role:ketua,pengurus');
     });
 

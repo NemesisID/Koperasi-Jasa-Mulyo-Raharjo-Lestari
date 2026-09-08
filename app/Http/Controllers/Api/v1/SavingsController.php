@@ -75,6 +75,18 @@ class SavingsController extends Controller
     }
 
     /**
+     * GET /api/v1/savings/wajib-overview — status setoran wajib seluruh anggota (bulan berjalan).
+     */
+    public function wajibOverview(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Status setoran wajib anggota berhasil dimuat.',
+            'data' => $this->savingsService->getWajibOverview(),
+        ]);
+    }
+
+    /**
      * POST /api/v1/savings/generate-monthly-billing — tagihan massal bulanan
      */
     public function generateMonthlyBilling(): JsonResponse

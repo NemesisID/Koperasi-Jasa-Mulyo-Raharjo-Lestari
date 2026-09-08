@@ -18,6 +18,8 @@ class PickupResource extends JsonResource
                 'id' => $this->member->id,
                 'member_code' => $this->member->member_code,
                 'name' => $this->member->name,
+                'address' => $this->member->address,
+                'phone' => $this->member->phone,
             ]),
             'officer' => $this->whenLoaded('officer', fn () => $this->officer?->only(['id', 'name'])),
             'location_type' => $this->location_type,

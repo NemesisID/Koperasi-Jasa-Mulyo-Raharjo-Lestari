@@ -16,6 +16,7 @@ class TrashCategory extends Model
         'unit',
         'price_sorted',
         'price_unsorted',
+        'price_sell',
         'is_active',
     ];
 
@@ -24,8 +25,17 @@ class TrashCategory extends Model
         return [
             'price_sorted' => 'decimal:2',
             'price_unsorted' => 'decimal:2',
+            'price_sell' => 'decimal:2',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Harga untuk anggota: harga jual dipotong 20% koperasi.
+     */
+    public function getPriceMemberAttribute(): float
+    {
+        return round((float) $this->price_sell * 0.80, 2);
     }
 
     public function pickupItems(): HasMany
