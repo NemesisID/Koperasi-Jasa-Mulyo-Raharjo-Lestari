@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('name', 100);
             $table->enum('type', ['income', 'expense']);
-            $table->enum('group_type', ['simpanan_pokok', 'simpanan_wajib', 'tipping_fee', 'operasional', 'lainnya']);
+            $table->enum('group_type', ['simpanan_pokok', 'simpanan_wajib', 'tipping_fee', 'operasional', 'lainnya', 'penjualan_sampah']);
         });
     }
 

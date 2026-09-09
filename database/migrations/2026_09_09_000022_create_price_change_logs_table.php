@@ -15,6 +15,8 @@ return new class extends Migration
             $table->decimal('new_price_sorted', 15, 2);
             $table->decimal('old_price_unsorted', 15, 2);
             $table->decimal('new_price_unsorted', 15, 2);
+            $table->decimal('old_price_sell', 10, 2)->nullable();
+            $table->decimal('new_price_sell', 10, 2)->nullable();
             $table->string('notes')->nullable();
             $table->foreignId('changed_by')->constrained('users')->cascadeOnDelete();
             $table->timestamps();

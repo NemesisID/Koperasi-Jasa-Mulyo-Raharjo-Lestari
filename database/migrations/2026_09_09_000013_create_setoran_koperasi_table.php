@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('setoran_koperasi', function (Blueprint $table) {
@@ -17,7 +14,7 @@ return new class extends Migration
             $table->enum('jenis', ['PEMASUKAN', 'PENGELUARAN']);
             $table->decimal('jumlah', 12, 2);
             $table->enum('status', ['PENDING', 'PROSES', 'SELESAI', 'BATAL'])->default('PENDING');
-            $table->enum('label', ['SHU', 'POKOK', 'TIPPING', 'SUKARELA']);
+            $table->enum('label', ['SHU', 'POKOK', 'WAJIB', 'TIPPING', 'SUKARELA']);
             $table->text('catatan')->nullable();
             $table->timestamps();
 
@@ -30,9 +27,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('setoran_koperasi');
