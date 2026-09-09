@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('detail_pengangkutan', function (Blueprint $table) {
@@ -22,8 +19,8 @@ return new class extends Migration
             $table->string('dusun', 100)->nullable();
             $table->string('rw', 5)->nullable();
             $table->string('rt', 5)->nullable();
-            $table->timestamps();
             $table->text('alamat');
+            $table->timestamps();
 
             $table->foreign('user_id', 'fk_pengangkutan_user')
                 ->references('id')
@@ -34,9 +31,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('detail_pengangkutan');

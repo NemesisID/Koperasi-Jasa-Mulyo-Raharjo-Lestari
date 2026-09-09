@@ -12,9 +12,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('officer_id')->nullable()->constrained('users')->onDelete('set null');
             $table->foreignId('member_id')->constrained('members')->onDelete('restrict');
+            $table->enum('location_type', ['gudang', 'jemput_rumah'])->default('gudang');
             $table->boolean('is_sorted')->default(false);
             $table->timestamp('scheduled_at')->nullable();
             $table->timestamp('completed_at')->nullable();
+            $table->decimal('total_gross', 15, 2)->default(0);
+            $table->decimal('total_fee', 15, 2)->default(0);
+            $table->decimal('total_net', 15, 2)->default(0);
             $table->enum('status', ['menunggu', 'selesai', 'batal'])->default('menunggu');
             $table->text('notes')->nullable();
             $table->timestamps();

@@ -13,6 +13,7 @@ return new class extends Migration
             $table->foreignId('pickup_id')->nullable()->constrained('pickups')->onDelete('cascade');
             $table->foreignId('category_id')->constrained('trash_categories')->onDelete('restrict');
             $table->decimal('weight_kg', 8, 2);
+            $table->unsignedInteger('unit_count')->default(0);
             $table->decimal('total_value', 15, 2);
             $table->timestamp('deposit_date')->useCurrent();
             $table->foreignId('transaction_id')->nullable()->constrained('transactions')->onDelete('set null');

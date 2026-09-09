@@ -76,6 +76,9 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
+            // Kategori jualan sampah (marketplace) + pemasukan dari sampah untuk labeling cashflow.
+            ['name' => 'Penjualan Sampah', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
+            ['name' => 'Pemasukan Sampah Lainnya', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
         ]);
 
         // 4. Katalog Sampah & Harga Awal (Referensi PRD §5.1.1 UD Sapu Jagad Ponorogo)
