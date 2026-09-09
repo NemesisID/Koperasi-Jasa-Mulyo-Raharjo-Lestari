@@ -42,11 +42,11 @@ class TrashCategoryService
     }
 
     /**
-     * Tarif per unit untuk lokasi jemput: harga dasar dikurangi potongan (logam Rp2.000, non-logam Rp300).
+     * Tarif per unit untuk lokasi jemput: harga jual dikurangi potongan (logam Rp2.000, non-logam Rp300).
      */
-    public function pickupPrice(TrashCategory $category, bool $isSorted): float
+    public function pickupPrice(TrashCategory $category): float
     {
-        $base = $isSorted ? $category->price_sorted : $category->price_unsorted;
+        $base = (float) $category->price_sell;
         $deduction = $category->type === 'logam'
             ? self::PICKUP_DEDUCTION_LOGAM
             : self::PICKUP_DEDUCTION_NON_LOGAM;
@@ -73,8 +73,9 @@ class TrashCategoryService
                     'price_sorted' => $category->price_sorted,
                     'price_unsorted' => $category->price_unsorted,
                     'price_sell' => $category->price_sell,
+                    'price_admin' => $category->price_admin,
                     'price_member' => $category->price_member,
-                    'pickup_price' => $this->pickupPrice($category, false),
+                    'pickup_price' => $this->pickupPrice($category),
                     'pickup_deduction' => $deduction,
                     'trend' => $this->resolveTrend($category),
                 ];

@@ -29,7 +29,7 @@ abstract class ApiTestCase extends TestCase
 
         TrashCategory::create([
             'name' => 'Tembaga', 'type' => 'logam', 'unit' => 'kg',
-            'price_sorted' => 130000, 'price_unsorted' => 125000, 'is_active' => true,
+            'price_sell' => 125000, 'price_admin' => 25000, 'is_active' => true,
         ]);
     }
 

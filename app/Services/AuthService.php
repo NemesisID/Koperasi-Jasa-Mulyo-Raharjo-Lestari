@@ -46,12 +46,12 @@ class AuthService
      *
      * @return array{user: User, member: Member}
      */
-    public function registerMember(array $data): array
+    public function registerMember(array $data, string $status = 'nonaktif'): array
     {
         [$user, $member] = DB::transaction(function () use ($data): array {
             $user = $this->userRepository->create([
                 'name' => $data['name'],
-                'username' => $data['username'],
+                'username' => $data['username'] ?? str(strstr($data['email'], '@', true) ?: $data['email'])->lower()->replaceMatches('/[^a-z0-9._]/', '.')->toString(),
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'role' => 'anggota',
@@ -66,7 +66,7 @@ class AuthService
                 'name' => $data['name'],
                 'address' => $data['address'],
                 'phone' => $data['phone'],
-                'status' => 'nonaktif',
+                'status' => $status,
                 'join_date' => now()->toDateString(),
             ]);
 

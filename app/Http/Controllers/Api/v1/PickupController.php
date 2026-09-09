@@ -11,6 +11,7 @@ use App\Http\Resources\Pickup\ReceiptResource;
 use App\Services\TrashWeighingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class PickupController extends Controller
@@ -58,6 +59,40 @@ class PickupController extends Controller
             'message' => 'Tiket penjemputan berhasil dibuat.',
             'data' => new PickupResource($pickup->load('member:id,member_code,name')),
         ], 201);
+    }
+
+    /**
+     * POST /api/v1/pickups/generate-routine — trigger manual pickup rutin (auto trigger).
+     */
+    public function generateRoutine(): JsonResponse
+    {
+        $exit = Artisan::call('pickups:generate-routine');
+
+        return response()->json([
+            'success' => $exit === 0,
+            'message' => Artisan::output(),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/pickups/{id}/photo — upload foto dokumentasi pengambilan (petugas).
+     */
+    public function uploadPhoto(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+        ]);
+
+        $pickup = $this->weighingService->getPickup($id);
+        $pickup->update([
+            'photo_path' => $request->file('photo')->store('pickups', 'public'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto dokumentasi berhasil diunggah.',
+            'data' => ['photo_url' => $pickup->photoUrl()],
+        ]);
     }
 
     /**

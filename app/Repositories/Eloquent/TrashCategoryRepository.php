@@ -65,7 +65,9 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
                 'old_price_unsorted' => $category->price_unsorted,
                 'new_price_unsorted' => $priceData['price_unsorted'],
                 'old_price_sell' => $category->price_sell,
-                'new_price_sell' => $priceData['price_sell'] ?? $category->price_sell,
+                'new_price_sell' => $priceData['price_sell'],
+                'old_price_admin' => $category->price_admin,
+                'new_price_admin' => $priceData['price_admin'] ?? $category->price_admin,
                 'notes' => $priceData['notes'] ?? null,
                 'changed_by' => $userId,
             ]);
@@ -73,7 +75,8 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
             $category->update([
                 'price_sorted' => $priceData['price_sorted'],
                 'price_unsorted' => $priceData['price_unsorted'],
-                'price_sell' => $priceData['price_sell'] ?? $category->price_sell,
+                'price_sell' => $priceData['price_sell'],
+                'price_admin' => $priceData['price_admin'] ?? $category->price_admin,
             ]);
 
             return $category->fresh();

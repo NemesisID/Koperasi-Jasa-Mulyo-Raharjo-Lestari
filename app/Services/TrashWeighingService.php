@@ -15,11 +15,6 @@ use Illuminate\Support\Facades\DB;
 
 class TrashWeighingService
 {
-    /**
-     * Porsi biaya operasional koperasi dari nilai bruto sampah.
-     */
-    private const FEE_RATE = 0.20;
-
     public function __construct(
         private readonly PickupRepositoryInterface $pickupRepository,
         private readonly TrashCategoryRepositoryInterface $trashCategoryRepository,
@@ -40,10 +35,18 @@ class TrashWeighingService
 
     /**
      * Buat tiket setor/jemput sampah (status menunggu timbang).
+     * Anggota tanpa member_id → otomatis member miliknya (pesan antar ala gojek).
      */
     public function createTicket(array $data, User $creator): Pickup
     {
-        $member = $this->memberRepository->findById($data['member_id']);
+        $memberId = $data['member_id']
+            ?? ($creator->role === 'anggota' ? $creator->member?->id : null);
+
+        if (! $memberId) {
+            throw new BusinessLogicException('member_id wajib diisi untuk akun non-anggota.');
+        }
+
+        $member = $this->memberRepository->findById($memberId);
 
         if ($member->status !== 'aktif') {
             throw new BusinessLogicException('Anggota tidak aktif — transaksi setor sampah tidak dapat dibuat.');
@@ -61,13 +64,15 @@ class TrashWeighingService
             'is_sorted' => $data['is_sorted'] ?? false,
             'scheduled_at' => $data['scheduled_at'] ?? now(),
             'notes' => $data['notes'] ?? null,
+            'source' => $data['source'] ?? 'manual',
             'status' => 'menunggu',
         ]);
     }
 
     /**
-     * Core engine: hitung nilai per item (tarif hari ini + lokasi), potong 20% koperasi,
-     * kredit 80% ke anggota (total_net), dan catat jurnal kas — satu transaksi DB.
+     * Core engine: hitung nilai per item dari harga jual raw (`price_sell`),
+     * potong biaya admin manual per kategori (`price_admin`, guideline 20%),
+     * kredit harga bersih ke anggota (total_net), dan catat jurnal kas — satu transaksi DB.
      *
      * @param  array<int, array{category_id: int, weight_kg?: float, unit_count?: int}>  $items
      */
@@ -82,14 +87,15 @@ class TrashWeighingService
 
             $itemRows = [];
             $totalGross = 0.0;
+            $totalFee = 0.0;
 
             foreach ($items as $item) {
                 // ponytail: kategori di-lock supaya harga tidak berubah di tengah penimbangan; batch fetch jika item banyak.
                 $category = TrashCategory::lockForUpdate()->findOrFail($item['category_id']);
 
                 $unitPrice = $pickup->location_type === 'jemput_rumah'
-                    ? $this->trashCategoryService->pickupPrice($category, $pickup->is_sorted)
-                    : ($pickup->is_sorted ? (float) $category->price_sorted : (float) $category->price_unsorted);
+                    ? $this->trashCategoryService->pickupPrice($category)
+                    : (float) $category->price_sell;
 
                 $quantity = $category->unit === 'kg'
                     ? (float) ($item['weight_kg'] ?? 0)
@@ -100,7 +106,9 @@ class TrashWeighingService
                 }
 
                 $lineValue = round($quantity * $unitPrice, 2);
+                $lineFee = round($quantity * (float) $category->price_admin, 2);
                 $totalGross += $lineValue;
+                $totalFee += $lineFee;
 
                 $itemRows[] = [
                     'category_id' => $category->id,
@@ -111,17 +119,17 @@ class TrashWeighingService
             }
 
             $totalGross = round($totalGross, 2);
-            $totalFee = round($totalGross * self::FEE_RATE, 2);
+            $totalFee = round($totalFee, 2);
             $totalNet = round($totalGross - $totalFee, 2);
 
-            // Jurnal kas: potongan 20% masuk sebagai pemasukan koperasi
+            // Jurnal kas: biaya admin masuk sebagai pemasukan koperasi
             $feeCategoryId = $this->transactionRepository->findCategoryIdByName('Potongan Admin Sampah 20%');
             $feeTransaction = $this->transactionRepository->create([
                 'member_id' => $pickup->member_id,
                 'category_id' => $feeCategoryId,
                 'type' => 'income',
                 'amount' => $totalFee,
-                'description' => "Potongan 20% transaksi timbang #{$pickup->id}",
+                'description' => "Potongan biaya admin transaksi timbang #{$pickup->id}",
                 'payment_method' => 'sampah',
                 'status' => 'berhasil',
                 'handled_by' => $officer->id,

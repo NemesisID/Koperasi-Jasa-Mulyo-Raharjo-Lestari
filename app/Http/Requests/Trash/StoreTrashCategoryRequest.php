@@ -23,7 +23,8 @@ class StoreTrashCategoryRequest extends FormRequest
             'unit' => ['required', Rule::in(['kg', 'biji', 'unit'])],
             'price_sorted' => ['required', 'numeric', 'min:0'],
             'price_unsorted' => ['required', 'numeric', 'min:0'],
-            'price_sell' => ['nullable', 'numeric', 'min:0'],
+            'price_sell' => ['required', 'numeric', 'min:0'],
+            'price_admin' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
         ];
     }

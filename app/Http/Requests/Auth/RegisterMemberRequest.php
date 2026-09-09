@@ -20,7 +20,7 @@ class RegisterMemberRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._]+$/', 'unique:users,username'],
+            'username' => ['nullable', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._]+$/', 'unique:users,username'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::min(8)],
             'member_type' => ['required', Rule::in(['rumah', 'pasar'])],

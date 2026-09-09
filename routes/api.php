@@ -20,7 +20,6 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         // Public endpoints
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-        Route::post('register-member', [AuthController::class, 'registerMember'])->middleware('throttle:5,1');
 
         // Authenticated endpoints
         Route::middleware('auth:sanctum')->group(function () {
@@ -48,7 +47,8 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('members')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [MemberController::class, 'index'])->middleware('role:ketua,pengurus,petugas');
-        Route::post('/', [MemberController::class, 'store'])->middleware('role:ketua,pengurus');
+        // Registrasi anggota oleh pengurus: user + member sekali jadi
+        Route::post('/register', [MemberController::class, 'register'])->middleware('role:ketua,pengurus');
         // Own-check untuk role anggota ada di controller (show)
         Route::get('/{id}', [MemberController::class, 'show'])->middleware('role:ketua,pengurus,petugas,anggota');
         Route::put('/{id}', [MemberController::class, 'update'])->middleware('role:ketua,pengurus');
@@ -71,7 +71,10 @@ Route::prefix('v1')->group(function () {
     // Operasional bank sampah: penjemputan & timbang
     Route::prefix('pickups')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [PickupController::class, 'index'])->middleware('role:ketua,pengurus,petugas,anggota');
+        // Trigger manual pickup rutin bulanan (auto trigger)
+        Route::post('/generate-routine', [PickupController::class, 'generateRoutine'])->middleware('role:ketua,pengurus');
         Route::post('/', [PickupController::class, 'store'])->middleware('role:ketua,pengurus,petugas,anggota');
+        Route::post('/{id}/photo', [PickupController::class, 'uploadPhoto'])->middleware('role:ketua,pengurus,petugas');
         Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:ketua,pengurus,petugas');
         // Own-check untuk role anggota ada di controller (show/receipt)
         Route::get('/{id}', [PickupController::class, 'show'])->middleware('role:ketua,pengurus,petugas,anggota');

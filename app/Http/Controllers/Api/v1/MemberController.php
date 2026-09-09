@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Member\StoreMemberRequest;
+use App\Http\Requests\Auth\RegisterMemberRequest;
 use App\Http\Requests\Member\UpdateMemberRequest;
 use App\Http\Requests\Member\UpdateMemberStatusRequest;
 use App\Http\Resources\Member\MemberResource;
+use App\Http\Resources\User\UserResource;
+use App\Services\AuthService;
 use App\Services\MemberService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +18,7 @@ class MemberController extends Controller
 {
     public function __construct(
         private readonly MemberService $memberService,
+        private readonly AuthService $authService,
     ) {}
 
     /**
@@ -40,16 +43,22 @@ class MemberController extends Controller
     }
 
     /**
-     * POST /api/v1/members
+     * POST /api/v1/members/register
+     *
+     * Registrasi anggota oleh pengurus: buat user (role anggota) + member
+     * (member_code autofill, kategori rumah/pasar) dalam satu transaksi.
      */
-    public function store(StoreMemberRequest $request): JsonResponse
+    public function register(RegisterMemberRequest $request): JsonResponse
     {
-        $member = $this->memberService->createMember($request->validated());
+        $result = $this->authService->registerMember($request->validated(), 'aktif');
 
         return response()->json([
             'success' => true,
-            'message' => 'Anggota berhasil ditambahkan.',
-            'data' => new MemberResource($member->load('category')),
+            'message' => 'Registrasi anggota oleh pengurus berhasil.',
+            'data' => [
+                'user' => new UserResource($result['user']),
+                'member' => new MemberResource($result['member']),
+            ],
         ], 201);
     }
 

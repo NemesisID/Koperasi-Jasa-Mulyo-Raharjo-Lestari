@@ -10,7 +10,6 @@ class MemberService
 {
     public function __construct(
         private readonly MemberRepositoryInterface $memberRepository,
-        private readonly SavingsService $savingsService,
     ) {}
 
     public function getMembersPaginated(array $filters): LengthAwarePaginator
@@ -21,20 +20,6 @@ class MemberService
     public function getMember(int $id): Member
     {
         return $this->memberRepository->findById($id);
-    }
-
-    public function createMember(array $data): Member
-    {
-        $data['member_code'] = $this->memberRepository->generateMemberCode();
-        $data['join_date'] ??= now()->toDateString();
-        $data['status'] ??= 'aktif';
-
-        $member = $this->memberRepository->create($data);
-
-        // Simpanan pokok Rp50.000 otomatis untuk anggota baru.
-        $this->savingsService->recordInitialPokok($member);
-
-        return $member;
     }
 
     public function updateMember(int $id, array $data): Member
