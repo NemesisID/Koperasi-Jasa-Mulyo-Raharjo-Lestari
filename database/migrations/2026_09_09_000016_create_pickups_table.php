@@ -21,6 +21,10 @@ return new class extends Migration
             $table->decimal('total_net', 15, 2)->default(0);
             $table->enum('status', ['menunggu', 'selesai', 'batal'])->default('menunggu');
             $table->text('notes')->nullable();
+            // Sumber tiket: 'manual' (pesan ala gojek), 'rutin' (scheduler bulanan), 'auto' (trigger manual endpoint)
+            $table->string('source', 20)->default('manual');
+            // Foto dokumentasi pengambilan sampah — diinput petugas saat jemput.
+            $table->string('photo_path', 255)->nullable();
             $table->timestamps();
         });
     }

@@ -15,8 +15,10 @@ return new class extends Migration
             $table->enum('unit', ['kg', 'biji', 'unit'])->default('kg');
             $table->decimal('price_sorted', 10, 2)->default(0);
             $table->decimal('price_unsorted', 10, 2)->default(0);
-            // Harga jual ke pengepul/marketplace; harga anggota (80%) dihitung on-the-fly.
+            // Harga jual ke pengepul/marketplace; harga bersih anggota = price_sell - price_admin.
             $table->decimal('price_sell', 10, 2)->default(0);
+            // Biaya admin per unit — input manual (guideline 20% dari harga jual).
+            $table->decimal('price_admin', 10, 2)->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
