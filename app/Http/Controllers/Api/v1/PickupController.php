@@ -20,11 +20,19 @@ class PickupController extends Controller
     ) {}
 
     /**
-     * GET /api/v1/pickups
+     * GET /api/v1/pickups — riwayat/daftar penjemputan.
+     * Anggota hanya melihat pickup miliknya sendiri.
      */
     public function index(Request $request): JsonResponse
     {
-        $paginator = $this->weighingService->getPickups($request->only(['status', 'date', 'per_page']));
+        $filters = $request->only(['status', 'date', 'member_id', 'search', 'per_page']);
+
+        if ($request->user()->role === 'anggota') {
+            abort_if($request->user()->member === null, 403, 'Hanya anggota yang memiliki riwayat penjemputan.');
+            $filters['member_id'] = $request->user()->member->id;
+        }
+
+        $paginator = $this->weighingService->getPickups($filters);
 
         return response()->json([
             'success' => true,

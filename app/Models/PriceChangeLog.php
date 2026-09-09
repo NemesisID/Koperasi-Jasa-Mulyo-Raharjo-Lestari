@@ -16,6 +16,8 @@ class PriceChangeLog extends Model
         'new_price_sorted',
         'old_price_unsorted',
         'new_price_unsorted',
+        'old_price_sell',
+        'new_price_sell',
         'notes',
         'changed_by',
     ];
@@ -27,6 +29,8 @@ class PriceChangeLog extends Model
             'new_price_sorted' => 'decimal:2',
             'old_price_unsorted' => 'decimal:2',
             'new_price_unsorted' => 'decimal:2',
+            'old_price_sell' => 'decimal:2',
+            'new_price_sell' => 'decimal:2',
         ];
     }
 

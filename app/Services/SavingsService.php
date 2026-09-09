@@ -14,10 +14,12 @@ use Illuminate\Support\Facades\DB;
 class SavingsService
 {
     /**
-     * Iuran bulanan: Simpanan Wajib Rp5.000 + Tipping Fee Rp40.000.
+     * Iuran bulanan: total Rp50.000 → operasional Rp45.000 + simpanan Rp5.000.
      */
     public const WAJIB_MONTHLY = 5000;
     public const TIPPING_MONTHLY = 40000;
+    public const OPERASIONAL_MONTHLY = 45000;
+    public const WAJIB_TOTAL_MONTHLY = 50000;
 
     /**
      * Map label setoran -> kategori jurnal kas.
@@ -45,6 +47,12 @@ class SavingsService
             throw new BusinessLogicException('Anggota tidak aktif — pembayaran simpanan tidak dapat dicatat.');
         }
 
+        // Pembayaran WAJIB bulanan Rp50.000: dipecah otomatis menjadi
+        // operasional Rp45.000 (label TIPPING) + simpanan Rp5.000 (label WAJIB).
+        if ($data['label'] === 'WAJIB' && (float) $data['jumlah'] === (float) self::WAJIB_TOTAL_MONTHLY) {
+            return $this->payMonthlyWajib($member, $handler, $data['metode'], $data['catatan'] ?? null);
+        }
+
         return DB::transaction(function () use ($data, $handler, $member): SetoranKoperasi {
             $setoran = $this->setoranRepository->create([
                 'user_id' => $member->user_id,
@@ -68,6 +76,103 @@ class SavingsService
 
             return $setoran;
         });
+    }
+
+    /**
+     * Konfirmasi pembayaran setoran wajib Rp50.000 oleh pengurus:
+     * tandai tagihan WAJIB + TIPPING bulan berjalan sebagai SELESAI (atau buat baru),
+     * lalu jurnal kas 45.000 operasional + 5.000 simpanan.
+     */
+    private function payMonthlyWajib(Member $member, User $handler, string $metode, ?string $catatan): SetoranKoperasi
+    {
+        return DB::transaction(function () use ($member, $handler, $metode, $catatan): SetoranKoperasi {
+            $setoran = null;
+
+            foreach (['TIPPING' => self::OPERASIONAL_MONTHLY, 'WAJIB' => self::WAJIB_MONTHLY] as $label => $amount) {
+                // Lunasi tagihan PENDING bulan berjalan jika ada; jika tidak, buat baris SELESAI baru.
+                $setoran = SetoranKoperasi::where('user_id', $member->user_id)
+                    ->where('label', $label)
+                    ->where('jenis', 'PEMASUKAN')
+                    ->whereIn('status', ['PENDING', 'PROSES'])
+                    ->whereYear('created_at', now()->year)
+                    ->whereMonth('created_at', now()->month)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($setoran) {
+                    $setoran->update(['status' => 'SELESAI', 'jumlah' => $amount, 'catatan' => $catatan ?? $setoran->catatan]);
+                } else {
+                    $setoran = $this->setoranRepository->create([
+                        'user_id' => $member->user_id,
+                        'jenis' => 'PEMASUKAN',
+                        'jumlah' => $amount,
+                        'status' => 'SELESAI',
+                        'label' => $label,
+                        'catatan' => $catatan ?? "Setoran wajib bulan ".now()->format('Y-m'),
+                    ]);
+                }
+
+                $this->transactionRepository->create([
+                    'member_id' => $member->id,
+                    'category_id' => $this->transactionRepository->findCategoryIdByName(self::LABEL_CATEGORY[$label]),
+                    'type' => 'income',
+                    'amount' => $amount,
+                    'description' => "Setoran wajib ({$label}) anggota {$member->member_code}".($catatan ? " — {$catatan}" : ''),
+                    'payment_method' => $metode,
+                    'status' => 'berhasil',
+                    'handled_by' => $handler->id,
+                ]);
+            }
+
+            return $setoran;
+        });
+    }
+
+    /**
+     * Overview setoran wajib seluruh anggota untuk halaman pengurus:
+     * per anggota — status tagihan bulan berjalan (WAJIB + TIPPING dianggap satu paket Rp50.000).
+     * ponytail: N+1 ringan per anggota (2 query) — cache/aggregate query jika anggota ribuan.
+     */
+    public function getWajibOverview(): array
+    {
+        $month = now()->format('Y-m');
+
+        $rows = Member::where('status', 'aktif')
+            ->with('user:id,name,username')
+            ->orderBy('name')
+            ->get(['id', 'user_id', 'member_code', 'name', 'phone'])
+            ->map(function (Member $member) use ($month): array {
+                $paid = SetoranKoperasi::where('user_id', $member->user_id)
+                    ->whereIn('label', ['WAJIB', 'TIPPING'])
+                    ->where('jenis', 'PEMASUKAN')
+                    ->where('status', 'SELESAI')
+                    ->whereYear('created_at', now()->year)
+                    ->whereMonth('created_at', now()->month)
+                    ->exists();
+
+                return [
+                    'member_id' => $member->id,
+                    'member_code' => $member->member_code,
+                    'name' => $member->name,
+                    'phone' => $member->phone,
+                    'username' => $member->user?->username,
+                    'period' => $month,
+                    'tagihan_operasional' => self::OPERASIONAL_MONTHLY,
+                    'tagihan_simpanan' => self::WAJIB_MONTHLY,
+                    'tagihan_total' => self::WAJIB_TOTAL_MONTHLY,
+                    'status' => $paid ? 'LUNAS' : 'BLM BAYAR',
+                ];
+            });
+
+        return [
+            'period' => $month,
+            'tagihan_operasional' => self::OPERASIONAL_MONTHLY,
+            'tagihan_simpanan' => self::WAJIB_MONTHLY,
+            'tagihan_total' => self::WAJIB_TOTAL_MONTHLY,
+            'belum_bayar' => $rows->where('status', 'BLM BAYAR')->count(),
+            'lunas' => $rows->where('status', 'LUNAS')->count(),
+            'members' => $rows->values(),
+        ];
     }
 
     /**
@@ -155,5 +260,20 @@ class SavingsService
     public function getSavings(array $filters): LengthAwarePaginator
     {
         return $this->setoranRepository->paginate($filters);
+    }
+
+    /**
+     * Simpanan pokok otomatis Rp50.000 saat akun anggota baru dibuat.
+     */
+    public function recordInitialPokok(Member $member): void
+    {
+        $this->setoranRepository->create([
+            'user_id' => $member->user_id,
+            'jenis' => 'PEMASUKAN',
+            'jumlah' => 50000,
+            'status' => 'SELESAI',
+            'label' => 'POKOK',
+            'catatan' => 'Simpanan pokok otomatis saat pendaftaran anggota',
+        ]);
     }
 }

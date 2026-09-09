@@ -13,9 +13,15 @@ class PickupRepository implements PickupRepositoryInterface
     public function paginate(array $filters): LengthAwarePaginator
     {
         return Pickup::query()
-            ->with('member:id,member_code,name', 'officer:id,name')
+            ->with('member:id,member_code,name,address,phone', 'officer:id,name')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($filters['member_id'] ?? null, fn ($query, $memberId) => $query->where('member_id', $memberId))
             ->when($filters['date'] ?? null, fn ($query, $date) => $query->whereDate('scheduled_at', $date))
+            ->when($filters['search'] ?? null, function ($query, $search) {
+                $query->whereHas('member', fn ($q) => $q
+                    ->where('name', 'like', "%{$search}%")
+                    ->orWhere('member_code', 'like', "%{$search}%"));
+            })
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 15);
     }

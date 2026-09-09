@@ -74,6 +74,40 @@ class SavingsBillingTest extends ApiTestCase
     }
 
     #[Test]
+    public function wajib_50k_payment_auto_splits_45k_operasional_5k_simpanan(): void
+    {
+        $this->seedCore();
+        [$bendahara] = $this->makeUserWithMember('pengurus');
+        [, $member] = $this->makeUserWithMember('anggota');
+
+        $service = app(SavingsService::class);
+        $service->generateMonthlyBilling(); // dua tagihan PENDING bulan berjalan
+
+        // Pengurus konfirmasi paket wajib Rp50.000 → sistem pecah otomatis.
+        $this->actingAs($bendahara)->postJson('/api/v1/savings/pay', [
+            'member_id' => $member->id,
+            'label' => 'WAJIB',
+            'jumlah' => 50000,
+            'metode' => 'tunai',
+        ])->assertStatus(201);
+
+        $wajib = SetoranKoperasi::where('label', 'WAJIB')->first();
+        $tipping = SetoranKoperasi::where('label', 'TIPPING')->first();
+        $this->assertEquals(5000, $wajib->jumlah);
+        $this->assertEquals(45000, $tipping->jumlah);
+        $this->assertEquals('SELESAI', $wajib->status);
+        $this->assertEquals('SELESAI', $tipping->status);
+
+        // Dua jurnal income (45rb operasional + 5rb simpanan)
+        $this->assertSame(2, \App\Models\Transaction::where('type', 'income')->count());
+
+        $overview = $service->getWajibOverview();
+        $row = collect($overview['members'])->firstWhere('member_id', $member->id);
+        $this->assertSame('LUNAS', $row['status']);
+        $this->assertEquals(50000, $row['tagihan_total']);
+    }
+
+    #[Test]
     public function billing_status_endpoint_returns_own_member_data(): void
     {
         $this->seedCore();

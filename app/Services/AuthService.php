@@ -16,6 +16,7 @@ class AuthService
     public function __construct(
         private readonly UserRepositoryInterface $userRepository,
         private readonly MemberRepositoryInterface $memberRepository,
+        private readonly SavingsService $savingsService,
     ) {}
 
     /**
@@ -68,6 +69,9 @@ class AuthService
                 'status' => 'nonaktif',
                 'join_date' => now()->toDateString(),
             ]);
+
+            // Simpanan pokok Rp50.000 otomatis saat akun anggota dibuat.
+            $this->savingsService->recordInitialPokok($member);
 
             return [$user, $member];
         });

@@ -53,6 +53,9 @@ class WalletService
             'total_withdrawn' => $withdrawn,
             'pending_withdrawal' => $pendingWithdraw,
             'available_balance' => round($fromTrash + $fromComplaint + $fromShu - $withdrawn - $pendingWithdraw, 2),
+            // Breakdown sumber saldo: sampah vs SHU (untuk dashboard anggota).
+            'balance_from_trash' => round($fromTrash + $fromComplaint - $withdrawn, 2),
+            'balance_from_shu' => $fromShu,
         ];
     }
 

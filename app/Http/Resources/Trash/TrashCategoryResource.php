@@ -19,6 +19,8 @@ class TrashCategoryResource extends JsonResource
             'unit' => $this->unit,
             'price_sorted' => $this->price_sorted,
             'price_unsorted' => $this->price_unsorted,
+            'price_sell' => $this->price_sell,
+            'price_member' => $this->price_member,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

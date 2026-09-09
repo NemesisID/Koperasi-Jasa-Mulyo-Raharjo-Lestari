@@ -19,6 +19,7 @@ class UpdateTrashPriceRequest extends FormRequest
         return [
             'price_sorted' => ['required', 'numeric', 'min:0'],
             'price_unsorted' => ['required', 'numeric', 'min:0'],
+            'price_sell' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:255'],
         ];
     }
