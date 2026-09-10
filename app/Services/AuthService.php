@@ -72,13 +72,15 @@ class AuthService
                 'member_code' => $this->memberRepository->generateMemberCode(),
                 'name' => $data['name'],
                 'address' => $data['address'] ?? null,
+                'address_rumah' => $data['address_rumah'] ?? null,
+                'address_pasar' => $data['address_pasar'] ?? null,
                 'phone' => $data['phone'] ?? null,
                 'status' => $status,
                 'join_date' => now()->toDateString(),
             ]);
 
-            // Simpanan pokok Rp50.000 otomatis saat akun anggota dibuat.
-            $this->savingsService->recordInitialPokok($member);
+            // Simpanan pokok Rp50.000 per kategori member otomatis saat akun anggota dibuat.
+            $this->savingsService->recordInitialPokok($member, $user);
 
             return [$user, $member];
         });

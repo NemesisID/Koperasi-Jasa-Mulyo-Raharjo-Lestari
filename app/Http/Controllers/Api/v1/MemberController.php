@@ -44,7 +44,7 @@ class MemberController extends Controller
      */
     public function store(StoreMemberRequest $request): JsonResponse
     {
-        $member = $this->memberService->createMember($request->validated());
+        $member = $this->memberService->createMember($request->validated(), $request->user());
 
         return response()->json([
             'success' => true,

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\BusinessLogicException;
 use App\Models\Pickup;
+use App\Models\Transaction;
 use App\Models\TrashCategory;
 use App\Models\User;
 use App\Repositories\Contracts\MemberRepositoryInterface;
@@ -75,8 +76,15 @@ class TrashWeighingService
         return DB::transaction(function () use ($pickupId, $items, $officer): Pickup {
             $pickup = $this->lockPickup($pickupId);
 
-            if ($pickup->status !== 'menunggu') {
+            if ($pickup->status === 'batal') {
                 throw new BusinessLogicException("Transaksi timbang tidak dapat diproses: status saat ini '{$pickup->status}'.");
+            }
+
+            // Edit timbangan: tiket selesai boleh ditimbang ulang — jurnal lama
+            // dibatalkan dan item diganti. Saldo anggota derived dari total_net
+            // pickup sehingga ikut terkoreksi otomatis.
+            if ($pickup->status === 'selesai') {
+                $this->rollbackWeighJournal($pickup);
             }
 
             $itemRows = [];
@@ -128,6 +136,20 @@ class TrashWeighingService
                 'handled_by' => $officer->id,
             ]);
 
+            // Jurnal kas: nilai bersih yang dibayarkan ke anggota = biaya beli sampah
+            // (expense koperasi, terpotong otomatis dari kas saat membeli sampah anggota).
+            $buyCategoryId = $this->transactionRepository->findCategoryIdByName('Beli Sampah Anggota');
+            $this->transactionRepository->create([
+                'member_id' => $pickup->member_id,
+                'category_id' => $buyCategoryId,
+                'type' => 'expense',
+                'amount' => $totalNet,
+                'description' => "Beli sampah anggota #{$pickup->id}",
+                'payment_method' => 'sampah',
+                'status' => 'berhasil',
+                'handled_by' => $officer->id,
+            ]);
+
             $this->pickupRepository->addItemsAndComplete($pickup, $itemRows, $feeTransaction, $totalGross, $totalFee, $totalNet, $officer);
 
             return $this->pickupRepository->findByIdWithDetails($pickup->id);
@@ -150,10 +172,8 @@ class TrashWeighingService
                 throw new BusinessLogicException('Hanya transaksi timbang berstatus selesai yang dapat dibatalkan.');
             }
 
-            // Rollback jurnal kas: tandai transaksi fee 20% gagal
-            $pickup->load('items')->items->pluck('transaction_id')->filter()->unique()->each(
-                fn ($transactionId) => $this->transactionRepository->updateStatus($transactionId, 'gagal'),
-            );
+            // Rollback jurnal kas lama (fee 20% + beli sampah anggota)
+            $this->rollbackWeighJournal($pickup);
 
             $this->pickupRepository->cancel($pickup, $reason);
 
@@ -164,5 +184,25 @@ class TrashWeighingService
     private function lockPickup(int $pickupId): Pickup
     {
         return Pickup::lockForUpdate()->findOrFail($pickupId);
+    }
+
+    /**
+     * Batalkan seluruh jurnal kas satu timbangan: transaksi fee 20% (via item)
+     * dan expense "Beli sampah anggota" (dicari via deskripsi — id transaksi
+     * expense tidak tersimpan di tabel items).
+     * ponytail: lookup by description — simpan expense_transaction_id di tabel
+     * pickups kalau deskripsi berubah sering.
+     */
+    private function rollbackWeighJournal(Pickup $pickup): void
+    {
+        $pickup->load('items')->items->pluck('transaction_id')->filter()->unique()->each(
+            fn ($transactionId) => $this->transactionRepository->updateStatus($transactionId, 'gagal'),
+        );
+
+        Transaction::where('description', "Beli sampah anggota #{$pickup->id}")
+            ->where('status', 'berhasil')
+            ->update(['status' => 'gagal']);
+
+        $pickup->items()->delete();
     }
 }

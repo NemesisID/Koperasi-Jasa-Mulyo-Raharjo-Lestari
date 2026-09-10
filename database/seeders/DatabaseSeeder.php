@@ -75,6 +75,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Tipping Fee Pengangkutan', 'type' => 'income', 'group_type' => 'tipping_fee'],
             ['name' => 'Potongan Admin Sampah 20%', 'type' => 'income', 'group_type' => 'operasional'],
             ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Beli Sampah Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
             // Kategori jualan sampah (marketplace) + pemasukan dari sampah untuk labeling cashflow.

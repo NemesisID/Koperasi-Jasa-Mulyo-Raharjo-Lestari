@@ -18,6 +18,8 @@ class Member extends Model
         'member_code',
         'name',
         'address',
+        'address_rumah',
+        'address_pasar',
         'phone',
         'status',
         'join_date',

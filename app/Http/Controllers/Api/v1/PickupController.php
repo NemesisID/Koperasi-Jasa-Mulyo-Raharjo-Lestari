@@ -149,6 +149,32 @@ class PickupController extends Controller
     }
 
     /**
+     * PATCH /api/v1/pickups/{id}/assign — plotting petugas ke tiket penjemputan.
+     */
+    public function assign(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'officer_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $pickup = $this->weighingService->getPickup($id);
+        $officerId = $request->input('officer_id');
+
+        if ($officerId !== null) {
+            $officer = \App\Models\User::find($officerId);
+            abort_unless(in_array($officer->role, ['petugas', 'pengurus']), 422, 'Petugas penjemputan harus akun petugas atau pengurus.');
+        }
+
+        $pickup->update(['officer_id' => $officerId]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penugasan petugas berhasil diperbarui.',
+            'data' => new PickupResource($pickup->load('officer:id,name')),
+        ]);
+    }
+
+    /**
      * Anggota hanya boleh mengakses pickup miliknya sendiri.
      */
     private function authorizeMemberAccess(Request $request, $pickup): void

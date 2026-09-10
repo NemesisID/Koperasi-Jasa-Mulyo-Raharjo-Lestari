@@ -43,8 +43,8 @@ class ShuCalculationEngine
         $modalPool = round($shuPool * self::MODAL_SHARE, 2);
         $participationPool = round($shuPool - $modalPool, 2);
 
-        // Bobot per anggota: total simpanan & total nilai setor sampah (gross) di tahun tsb.
-        $members = Member::where('status', 'aktif')->with('user:id')->get(['id', 'member_code', 'name', 'user_id']);
+        // Dibagi RATA per member: 1 porsi per kategori member (dual-status rumah+pasar = 2 porsi).
+        $members = Member::where('status', 'aktif')->with('user:id')->get(['id', 'member_code', 'name', 'user_id', 'categories']);
 
         $simpanan = SetoranKoperasi::whereIn('user_id', $members->pluck('user_id'))
             ->whereIn('label', ['POKOK', 'WAJIB', 'SUKARELA'])
@@ -60,31 +60,28 @@ class ShuCalculationEngine
             ->groupBy('member_id')
             ->pluck('total', 'member_id');
 
-        $totalSimpanan = (float) $simpanan->sum();
-        $totalParticipation = (float) $participation->sum();
+        $shares = $members->sum(fn (Member $m) => max(1, count($m->categories ?? [])));
+        if ($shares < 1) {
+            throw new BusinessLogicException('Tidak ada anggota aktif untuk menerima SHU.');
+        }
 
         $rows = [];
         $totalDistributed = 0.0;
 
         foreach ($members as $member) {
-            $simpananAmount = (float) ($simpanan[$member->user_id] ?? 0);
-            $participationAmount = (float) ($participation[$member->id] ?? 0);
+            // Porsi anggota = jumlah kategori member (rumah/pasar), dibagi rata dari pool.
+            $memberShares = max(1, count($member->categories ?? []));
 
-            // Anggota tanpa kontribusi sama sekali tidak menerima SHU
-            if ($simpananAmount <= 0 && $participationAmount <= 0) {
-                continue;
-            }
-
-            $modalAmount = $totalSimpanan > 0 ? round($modalPool * ($simpananAmount / $totalSimpanan), 2) : 0.0;
-            $participationShu = $totalParticipation > 0 ? round($participationPool * ($participationAmount / $totalParticipation), 2) : 0.0;
+            $modalAmount = round($modalPool * ($memberShares / $shares), 2);
+            $participationShu = round($participationPool * ($memberShares / $shares), 2);
             $total = round($modalAmount + $participationShu, 2);
 
             $rows[] = [
                 'member_id' => $member->id,
                 'member_code' => $member->member_code,
                 'name' => $member->name,
-                'simpanan_amount' => $simpananAmount,
-                'participation_amount' => $participationAmount,
+                'simpanan_amount' => (float) ($simpanan[$member->user_id] ?? 0),
+                'participation_amount' => (float) ($participation[$member->id] ?? 0),
                 'simpanan_pokok_amount' => $modalAmount,
                 'simpanan_wajib_amount' => 0.0, // dipecah saat publish jika diperlukan
                 'participation_shu' => $participationShu,

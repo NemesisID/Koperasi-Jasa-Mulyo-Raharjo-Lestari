@@ -17,8 +17,9 @@ class SavingsService
      * Iuran bulanan: total Rp50.000 → operasional Rp45.000 + simpanan Rp5.000.
      */
     public const WAJIB_MONTHLY = 5000;
-    public const TIPPING_MONTHLY = 40000;
     public const OPERASIONAL_MONTHLY = 45000;
+    // Tagihan TIPPING = operasional (dulu 40.000 — dibuat konsisten 45.000 agar total pas 50.000/kategori).
+    public const TIPPING_MONTHLY = self::OPERASIONAL_MONTHLY;
     public const WAJIB_TOTAL_MONTHLY = 50000;
 
     /**
@@ -37,6 +38,15 @@ class SavingsService
     ) {}
 
     /**
+     * Jumlah kategori member (rumah/pasar): anggota dual-status menanggung
+     * tagihan & simpanan pokok 2x karena dihitung per kategori.
+     */
+    private function categoryCount(Member $member): int
+    {
+        return max(1, count($member->categories ?? []));
+    }
+
+    /**
      * Catat pembayaran simpanan/tipping: setoran SELESAI + jurnal income kas.
      */
     public function recordSavingsPayment(array $data, User $handler): SetoranKoperasi
@@ -47,9 +57,10 @@ class SavingsService
             throw new BusinessLogicException('Anggota tidak aktif — pembayaran simpanan tidak dapat dicatat.');
         }
 
-        // Pembayaran WAJIB bulanan Rp50.000: dipecah otomatis menjadi
-        // operasional Rp45.000 (label TIPPING) + simpanan Rp5.000 (label WAJIB).
-        if ($data['label'] === 'WAJIB' && (float) $data['jumlah'] === (float) self::WAJIB_TOTAL_MONTHLY) {
+        // Pembayaran WAJIB bulanan (Rp50.000 per kategori member): dipecah otomatis
+        // menjadi operasional Rp45.000 (label TIPPING) + simpanan Rp5.000 (label WAJIB).
+        // Dual-status (rumah+pasar) membayar kelipatan 50.000.
+        if ($data['label'] === 'WAJIB' && fmod((float) $data['jumlah'], (float) self::WAJIB_TOTAL_MONTHLY) === 0.0) {
             return $this->payMonthlyWajib($member, $handler, $data['metode'], $data['catatan'] ?? null);
         }
 
@@ -85,10 +96,13 @@ class SavingsService
      */
     private function payMonthlyWajib(Member $member, User $handler, string $metode, ?string $catatan): SetoranKoperasi
     {
-        return DB::transaction(function () use ($member, $handler, $metode, $catatan): SetoranKoperasi {
+        // Tagihan dihitung per kategori member (dual-status = 2x).
+        $n = $this->categoryCount($member);
+
+        return DB::transaction(function () use ($member, $handler, $metode, $catatan, $n): SetoranKoperasi {
             $setoran = null;
 
-            foreach (['TIPPING' => self::OPERASIONAL_MONTHLY, 'WAJIB' => self::WAJIB_MONTHLY] as $label => $amount) {
+            foreach (['TIPPING' => self::OPERASIONAL_MONTHLY * $n, 'WAJIB' => self::WAJIB_MONTHLY * $n] as $label => $amount) {
                 // Lunasi tagihan PENDING bulan berjalan jika ada; jika tidak, buat baris SELESAI baru.
                 $setoran = SetoranKoperasi::where('user_id', $member->user_id)
                     ->where('label', $label)
@@ -140,7 +154,7 @@ class SavingsService
         $rows = Member::where('status', 'aktif')
             ->with('user:id,name,username')
             ->orderBy('name')
-            ->get(['id', 'user_id', 'member_code', 'name', 'phone'])
+            ->get(['id', 'user_id', 'member_code', 'name', 'phone', 'categories'])
             ->map(function (Member $member) use ($month): array {
                 $paid = SetoranKoperasi::where('user_id', $member->user_id)
                     ->whereIn('label', ['WAJIB', 'TIPPING'])
@@ -150,6 +164,9 @@ class SavingsService
                     ->whereMonth('created_at', now()->month)
                     ->exists();
 
+                // Tagihan per kategori member (dual-status rumah+pasar = 2x).
+                $n = $this->categoryCount($member);
+
                 return [
                     'member_id' => $member->id,
                     'member_code' => $member->member_code,
@@ -157,9 +174,10 @@ class SavingsService
                     'phone' => $member->phone,
                     'username' => $member->user?->username,
                     'period' => $month,
-                    'tagihan_operasional' => self::OPERASIONAL_MONTHLY,
-                    'tagihan_simpanan' => self::WAJIB_MONTHLY,
-                    'tagihan_total' => self::WAJIB_TOTAL_MONTHLY,
+                    'categories' => $member->categories ?? [],
+                    'tagihan_operasional' => self::OPERASIONAL_MONTHLY * $n,
+                    'tagihan_simpanan' => self::WAJIB_MONTHLY * $n,
+                    'tagihan_total' => self::WAJIB_TOTAL_MONTHLY * $n,
                     'status' => $paid ? 'LUNAS' : 'BLM BAYAR',
                 ];
             });
@@ -187,7 +205,9 @@ class SavingsService
         DB::transaction(function () use ($month, &$created): void {
             Member::where('status', 'aktif')->with('user:id')->chunkById(100, function ($members) use ($month, &$created): void {
                 foreach ($members as $member) {
-                    foreach (['WAJIB' => self::WAJIB_MONTHLY, 'TIPPING' => self::TIPPING_MONTHLY] as $label => $amount) {
+                    // Tagihan per kategori member (dual-status rumah+pasar = 2x).
+                    $n = $this->categoryCount($member);
+                    foreach (['WAJIB' => self::WAJIB_MONTHLY * $n, 'TIPPING' => self::TIPPING_MONTHLY * $n] as $label => $amount) {
                         $exists = SetoranKoperasi::where('user_id', $member->user_id)
                             ->where('label', $label)
                             ->where('jenis', 'PEMASUKAN')
@@ -221,6 +241,9 @@ class SavingsService
     {
         $member = Member::with('user:id')->findOrFail($memberId);
 
+        // Tagihan per kategori member (dual-status rumah+pasar = 2x).
+        $n = $this->categoryCount($member);
+
         $paid = SetoranKoperasi::where('user_id', $member->user_id)
             ->where('jenis', 'PEMASUKAN')
             ->whereIn('label', ['WAJIB', 'TIPPING'])
@@ -230,8 +253,8 @@ class SavingsService
             ->get(['label', 'jumlah', 'status']);
 
         $labels = [
-            'WAJIB' => self::WAJIB_MONTHLY,
-            'TIPPING' => self::TIPPING_MONTHLY,
+            'WAJIB' => self::WAJIB_MONTHLY * $n,
+            'TIPPING' => self::TIPPING_MONTHLY * $n,
         ];
 
         $detail = collect($labels)->map(function (int $amount, string $label) use ($paid): array {
@@ -251,7 +274,7 @@ class SavingsService
         return [
             'member' => ['id' => $member->id, 'member_code' => $member->member_code, 'name' => $member->name],
             'period' => now()->format('Y-m'),
-            'total_monthly' => self::WAJIB_MONTHLY + self::TIPPING_MONTHLY,
+            'total_monthly' => (self::WAJIB_MONTHLY + self::TIPPING_MONTHLY) * $n,
             'fully_paid' => $detail->every(fn ($d) => $d['paid']),
             'detail' => $detail,
         ];
@@ -263,17 +286,33 @@ class SavingsService
     }
 
     /**
-     * Simpanan pokok otomatis Rp50.000 saat akun anggota baru dibuat.
+     * Simpanan pokok otomatis Rp50.000 per kategori member saat akun anggota baru
+     * dibuat (dual-status rumah+pasar = Rp100.000), plus jurnal income kas koperasi.
      */
-    public function recordInitialPokok(Member $member): void
+    public function recordInitialPokok(Member $member, ?User $handler = null): void
     {
-        $this->setoranRepository->create([
-            'user_id' => $member->user_id,
-            'jenis' => 'PEMASUKAN',
-            'jumlah' => 50000,
-            'status' => 'SELESAI',
-            'label' => 'POKOK',
-            'catatan' => 'Simpanan pokok otomatis saat pendaftaran anggota',
-        ]);
+        $jumlah = 50000 * $this->categoryCount($member);
+
+        DB::transaction(function () use ($member, $handler, $jumlah): void {
+            $this->setoranRepository->create([
+                'user_id' => $member->user_id,
+                'jenis' => 'PEMASUKAN',
+                'jumlah' => $jumlah,
+                'status' => 'SELESAI',
+                'label' => 'POKOK',
+                'catatan' => 'Simpanan pokok otomatis saat pendaftaran anggota',
+            ]);
+
+            $this->transactionRepository->create([
+                'member_id' => $member->id,
+                'category_id' => $this->transactionRepository->findCategoryIdByName(self::LABEL_CATEGORY['POKOK']),
+                'type' => 'income',
+                'amount' => $jumlah,
+                'description' => "Simpanan pokok anggota {$member->member_code}",
+                'payment_method' => 'tunai',
+                'status' => 'berhasil',
+                'handled_by' => $handler?->id ?? $member->user_id,
+            ]);
+        });
     }
 }

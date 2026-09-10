@@ -51,6 +51,8 @@ class UserService
                 'name' => $user->name,
                 'phone' => $user->phone,
                 'address' => $user->address,
+                'address_rumah' => $data['address_rumah'] ?? $user->member->address_rumah,
+                'address_pasar' => $data['address_pasar'] ?? $user->member->address_pasar,
             ]);
         }
 

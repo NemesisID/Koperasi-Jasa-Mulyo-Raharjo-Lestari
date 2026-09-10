@@ -78,6 +78,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}', [PickupController::class, 'show'])->middleware('role:pengurus,petugas,anggota');
         Route::get('/{id}/receipt', [PickupController::class, 'receipt'])->middleware('role:pengurus,petugas,anggota');
         Route::patch('/{id}/cancel', [PickupController::class, 'cancel'])->middleware('role:pengurus');
+        // Plotting petugas: tugaskan petugas ke tiket penjemputan (pengurus)
+        Route::patch('/{id}/assign', [PickupController::class, 'assign'])->middleware('role:pengurus');
     });
 
     // Pengaduan & komplain nota timbang
