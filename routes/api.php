@@ -17,6 +17,14 @@ use App\Http\Controllers\Api\v1\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    // Fallback 401 JSON untuk nama route 'login' — API-only app tidak punya halaman
+    // login web; tanpa ini request tanpa token dari kode lama/skeleton lama
+    // meledak jadi "Route [login] not defined" (500) alih-alih 401.
+    Route::get('/login', fn () => response()->json([
+        'message' => 'Unauthenticated or invalid token.',
+        'errors' => null,
+    ], 401))->name('login');
+
     Route::prefix('auth')->group(function () {
         // Public endpoints
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
