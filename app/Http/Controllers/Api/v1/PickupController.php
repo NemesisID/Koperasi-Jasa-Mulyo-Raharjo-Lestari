@@ -25,7 +25,7 @@ class PickupController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['status', 'date', 'member_id', 'search', 'per_page']);
+        $filters = $request->only(['status', 'date', 'member_id', 'officer_id', 'search', 'per_page']);
 
         if ($request->user()->role === 'anggota') {
             abort_if($request->user()->member === null, 403, 'Hanya anggota yang memiliki riwayat penjemputan.');
