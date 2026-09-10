@@ -42,30 +42,37 @@ class AuthService
     }
 
     /**
-     * Registrasi mandiri calon anggota (role anggota, status menunggu verifikasi).
+     * Registrasi calon anggota (role anggota).
+     * Status default nonaktif (menunggu verifikasi) untuk registrasi mandiri;
+     * pengurus membuat akun anggota langsung aktif.
      *
+     * @param  array{member_types: array<int, string>}  $data
      * @return array{user: User, member: Member}
      */
     public function registerMember(array $data, string $status = 'nonaktif'): array
     {
-        [$user, $member] = DB::transaction(function () use ($data): array {
+        [$user, $member] = DB::transaction(function () use ($data, $status): array {
             $user = $this->userRepository->create([
                 'name' => $data['name'],
-                'username' => $data['username'] ?? str(strstr($data['email'], '@', true) ?: $data['email'])->lower()->replaceMatches('/[^a-z0-9._]/', '.')->toString(),
+                'username' => $data['username'],
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'role' => 'anggota',
-                'phone' => $data['phone'],
-                'address' => $data['address'],
+                'phone' => $data['phone'] ?? null,
+                'address' => $data['address'] ?? null,
             ]);
+
+            $memberTypes = array_values(array_unique($data['member_types']));
 
             $member = $this->memberRepository->create([
                 'user_id' => $user->id,
-                'member_category_id' => $this->memberRepository->getTypeCategoryId($data['member_type']),
+                // Kategori pertama jadi kategori utama (kolom wajib); sisanya di kolom json.
+                'member_category_id' => $this->memberRepository->getTypeCategoryId($memberTypes[0]),
+                'categories' => $memberTypes,
                 'member_code' => $this->memberRepository->generateMemberCode(),
                 'name' => $data['name'],
-                'address' => $data['address'],
-                'phone' => $data['phone'],
+                'address' => $data['address'] ?? null,
+                'phone' => $data['phone'] ?? null,
                 'status' => $status,
                 'join_date' => now()->toDateString(),
             ]);

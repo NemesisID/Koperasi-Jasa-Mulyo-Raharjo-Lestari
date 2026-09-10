@@ -5,6 +5,7 @@ namespace App\Repositories\Eloquent;
 use App\Models\Pickup;
 use App\Models\PickupItem;
 use App\Models\Transaction;
+use App\Models\User;
 use App\Repositories\Contracts\PickupRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -41,7 +42,7 @@ class PickupRepository implements PickupRepositoryInterface
         return Pickup::create($data);
     }
 
-    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet): void
+    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void
     {
         foreach ($itemRows as $row) {
             PickupItem::create([
@@ -55,6 +56,8 @@ class PickupRepository implements PickupRepositoryInterface
         $pickup->update([
             'status' => 'selesai',
             'completed_at' => now(),
+            // Tiket buatan anggota (minta jemput) diambil alih petugas saat ditimbang.
+            'officer_id' => $pickup->officer_id ?? $officer?->id,
             'total_gross' => $totalGross,
             'total_fee' => $totalFee,
             'total_net' => $totalNet,

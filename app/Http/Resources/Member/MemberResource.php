@@ -20,6 +20,7 @@ class MemberResource extends JsonResource
             'address' => $this->address,
             'status' => $this->status,
             'join_date' => $this->join_date?->toDateString(),
+            'categories' => $this->categories ?? [],
             'category' => new MemberCategoryResource($this->whenLoaded('category')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

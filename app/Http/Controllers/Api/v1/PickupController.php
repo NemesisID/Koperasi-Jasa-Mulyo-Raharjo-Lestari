@@ -11,7 +11,6 @@ use App\Http\Resources\Pickup\ReceiptResource;
 use App\Services\TrashWeighingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class PickupController extends Controller
@@ -62,20 +61,8 @@ class PickupController extends Controller
     }
 
     /**
-     * POST /api/v1/pickups/generate-routine — trigger manual pickup rutin (auto trigger).
-     */
-    public function generateRoutine(): JsonResponse
-    {
-        $exit = Artisan::call('pickups:generate-routine');
-
-        return response()->json([
-            'success' => $exit === 0,
-            'message' => Artisan::output(),
-        ]);
-    }
-
-    /**
-     * POST /api/v1/pickups/{id}/photo — upload foto dokumentasi pengambilan (petugas).
+     * POST /api/v1/pickups/{id}/photo — upload foto dokumentasi timbang/pengambilan (petugas).
+     * R3 (revisi fase-2): foto + geo-tag opsional; timestamp = completed_at (terisi saat weigh-items).
      */
     public function uploadPhoto(Request $request, int $id): JsonResponse
     {

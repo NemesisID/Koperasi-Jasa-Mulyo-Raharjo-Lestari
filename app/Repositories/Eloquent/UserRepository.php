@@ -18,6 +18,7 @@ class UserRepository implements UserRepositoryInterface
     public function paginate(array $filters): LengthAwarePaginator
     {
         return User::query()
+            ->with('member')
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(fn ($q) => $q

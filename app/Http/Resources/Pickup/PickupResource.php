@@ -25,7 +25,6 @@ class PickupResource extends JsonResource
             'location_type' => $this->location_type,
             'is_sorted' => $this->is_sorted,
             'status' => $this->status,
-            'source' => $this->source,
             'photo_url' => $this->photoUrl(),
             'latitude' => $this->latitude,
             'longitude' => $this->longitude,

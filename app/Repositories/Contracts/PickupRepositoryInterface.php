@@ -4,6 +4,7 @@ namespace App\Repositories\Contracts;
 
 use App\Models\Pickup;
 use App\Models\Transaction;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface PickupRepositoryInterface
@@ -25,8 +26,9 @@ interface PickupRepositoryInterface
 
     /**
      * Simpan rincian item, kunci nilai total, dan tandai selesai — dipanggil dalam DB::transaction service.
+     * Officer mengisi petugas penimbang untuk tiket buatan anggota (minta jemput).
      */
-    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet): void;
+    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void;
 
     /**
      * Batalkan pickup (status batal, catat alasan).

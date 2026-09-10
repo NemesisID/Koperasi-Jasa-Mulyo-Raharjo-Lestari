@@ -14,6 +14,7 @@ class Member extends Model
     protected $fillable = [
         'user_id',
         'member_category_id',
+        'categories',
         'member_code',
         'name',
         'address',
@@ -26,6 +27,7 @@ class Member extends Model
     {
         return [
             'join_date' => 'date',
+            'categories' => 'array',
         ];
     }
 

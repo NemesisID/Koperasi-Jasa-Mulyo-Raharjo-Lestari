@@ -129,7 +129,7 @@ class TestingSeeder extends Seeder
             'member_id' => $aktif[0],
             'category_id' => $fcPotongan->id,
             'type' => 'income',
-            'amount' => 7300,
+            'amount' => 9820,
             'description' => 'Potongan 20% transaksi timbangan NTC-202609-0001',
             'payment_method' => 'sampah',
             'status' => 'berhasil',
@@ -143,8 +143,11 @@ class TestingSeeder extends Seeder
         $kardus = TrashCategory::where('name', 'Kardus')->first();
         $monitor = TrashCategory::where('name', 'Monitor tabung')->first();
 
-        // Pickup selesai + item timbangan (anggota pertama, nilai konsisten)
-        // gross 36500 = tembaga 0.2kg*125000 + aqua 5kg*4500 -> fee 20% = 7300 -> net 29200
+        // Pickup selesai + item timbangan (anggota pertama, nilai konsisten
+        // dengan service: jemput_rumah is_sorted → sorted - diskon jemput
+        // (logam 2.000 / non-logam 300), fee 20% dari gross)
+        // tembaga 0.2kg×(130.000-2.000)=25.600 + aqua 5kg×(5.000-300)=23.500
+        // → gross 49.100, fee 9.820, net 39.280
         $pickupSelesai = Pickup::create([
             'officer_id' => $petugas->id,
             'member_id' => $aktif[0],
@@ -154,12 +157,12 @@ class TestingSeeder extends Seeder
             'completed_at' => now()->subDays(2)->setTime(10, 30),
             'status' => 'selesai',
             'notes' => 'Sampah sudah dipisah per kategori',
-            'total_gross' => 36500,
-            'total_fee' => 7300,
-            'total_net' => 29200,
+            'total_gross' => 49100,
+            'total_fee' => 9820,
+            'total_net' => 39280,
         ]);
-        PickupItem::create(['pickup_id' => $pickupSelesai->id, 'category_id' => $tembaga->id, 'weight_kg' => 0.2, 'unit_count' => 0, 'total_value' => 25000, 'deposit_date' => now()->subDays(2), 'transaction_id' => $trx3->id]);
-        PickupItem::create(['pickup_id' => $pickupSelesai->id, 'category_id' => $aqua->id, 'weight_kg' => 5, 'unit_count' => 0, 'total_value' => 22500, 'deposit_date' => now()->subDays(2)]);
+        PickupItem::create(['pickup_id' => $pickupSelesai->id, 'category_id' => $tembaga->id, 'weight_kg' => 0.2, 'unit_count' => 0, 'total_value' => 25600, 'deposit_date' => now()->subDays(2), 'transaction_id' => $trx3->id]);
+        PickupItem::create(['pickup_id' => $pickupSelesai->id, 'category_id' => $aqua->id, 'weight_kg' => 5, 'unit_count' => 0, 'total_value' => 23500, 'deposit_date' => now()->subDays(2)]);
 
         // Pickup menunggu penjemputan (untuk test weigh-items)
         $pickupMenunggu = Pickup::create([
@@ -173,6 +176,7 @@ class TestingSeeder extends Seeder
         ]);
 
         // Pickup elektronik per unit (untuk test unit_count)
+        // gudang is_sorted=false → unsorted 20.000×3 = 60.000, fee 12.000, net 48.000
         $pickupUnit = Pickup::create([
             'officer_id' => $petugas->id,
             'member_id' => $aktif[2] ?? $aktif[0],
@@ -182,11 +186,11 @@ class TestingSeeder extends Seeder
             'completed_at' => now()->subDays(5)->setTime(14, 0),
             'status' => 'selesai',
             'notes' => 'Setoran elektronik bekas',
-            'total_gross' => 75000,
-            'total_fee' => 15000,
-            'total_net' => 60000,
+            'total_gross' => 60000,
+            'total_fee' => 12000,
+            'total_net' => 48000,
         ]);
-        PickupItem::create(['pickup_id' => $pickupUnit->id, 'category_id' => $monitor->id, 'weight_kg' => 0, 'unit_count' => 3, 'total_value' => 75000, 'deposit_date' => now()->subDays(5)]);
+        PickupItem::create(['pickup_id' => $pickupUnit->id, 'category_id' => $monitor->id, 'weight_kg' => 0, 'unit_count' => 3, 'total_value' => 60000, 'deposit_date' => now()->subDays(5)]);
 
         // Pickup batal (untuk test fitur cancel & filter status)
         $pickupBatal = Pickup::create([

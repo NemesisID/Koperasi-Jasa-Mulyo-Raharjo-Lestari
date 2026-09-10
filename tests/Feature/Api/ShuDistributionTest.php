@@ -15,7 +15,7 @@ class ShuDistributionTest extends ApiTestCase
     public function simulate_computes_20_percent_pool(): void
     {
         $this->seedCore();
-        [$ketua] = $this->makeUserWithMember('ketua');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
         [, $member] = $this->makeUserWithMember('anggota');
 
         // Kontribusi anggota: setor sampah + simpanan POKOK
@@ -29,7 +29,7 @@ class ShuDistributionTest extends ApiTestCase
             $this->makeUserWithMember('pengurus')[0],
         );
 
-        $response = $this->actingAs($ketua)->postJson('/api/v1/shu/simulate', [
+        $response = $this->actingAs($pengurus)->postJson('/api/v1/shu/simulate', [
             'year' => now()->year,
             'net_profit' => 1000000,
             'shu_pool_percentage' => 20,
@@ -49,7 +49,7 @@ class ShuDistributionTest extends ApiTestCase
     public function publish_credits_member_wallet_massally(): void
     {
         $this->seedCore();
-        [$ketua] = $this->makeUserWithMember('ketua');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
         [, $member] = $this->makeUserWithMember('anggota');
 
         $tembaga = TrashCategory::first();
@@ -66,11 +66,11 @@ class ShuDistributionTest extends ApiTestCase
 
         $engine = app(ShuCalculationEngine::class);
         $sim = $engine->simulateDistribution(now()->year, 1000000, 20);
-        $draft = $engine->saveDraft($sim, $ketua);
+        $draft = $engine->saveDraft($sim, $pengurus);
 
         $balanceBefore = app(WalletService::class)->getMemberWalletSummary($member->id)['current_balance'];
 
-        $this->actingAs($ketua)->postJson('/api/v1/shu/publish', [
+        $this->actingAs($pengurus)->postJson('/api/v1/shu/publish', [
             'shu_distribution_id' => $draft->id,
         ])->assertStatus(200)->assertJsonPath('data.status', 'dibagikan');
 
@@ -86,7 +86,7 @@ class ShuDistributionTest extends ApiTestCase
     public function double_publish_is_rejected(): void
     {
         $this->seedCore();
-        [$ketua] = $this->makeUserWithMember('ketua');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
         [, $member] = $this->makeUserWithMember('anggota');
 
         $tembaga = TrashCategory::first();
@@ -96,14 +96,14 @@ class ShuDistributionTest extends ApiTestCase
         $weighing->weighAndComplete($ticket->id, [['category_id' => $tembaga->id, 'weight_kg' => 2]], $petugas);
 
         $engine = app(ShuCalculationEngine::class);
-        $draft = $engine->saveDraft($engine->simulateDistribution(now()->year, 1000000, 20), $ketua);
+        $draft = $engine->saveDraft($engine->simulateDistribution(now()->year, 1000000, 20), $pengurus);
 
-        $this->actingAs($ketua)->postJson('/api/v1/shu/publish', ['shu_distribution_id' => $draft->id])->assertStatus(200);
-        $this->actingAs($ketua)->postJson('/api/v1/shu/publish', ['shu_distribution_id' => $draft->id])->assertStatus(400);
+        $this->actingAs($pengurus)->postJson('/api/v1/shu/publish', ['shu_distribution_id' => $draft->id])->assertStatus(200);
+        $this->actingAs($pengurus)->postJson('/api/v1/shu/publish', ['shu_distribution_id' => $draft->id])->assertStatus(400);
     }
 
     #[Test]
-    public function only_ketua_can_publish(): void
+    public function only_pengurus_can_publish(): void
     {
         $this->seedCore();
         [$bendahara] = $this->makeUserWithMember('pengurus');

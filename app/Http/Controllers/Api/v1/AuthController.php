@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\v1;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\RegisterMemberRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Resources\User\AuthTokenResource;
 use App\Http\Resources\User\UserResource;
@@ -33,6 +34,23 @@ class AuthController extends Controller
             'message' => 'Login berhasil.',
             'data' => new AuthTokenResource($result),
         ]);
+    }
+
+    /**
+     * POST /api/v1/auth/register-member
+     */
+    public function registerMember(RegisterMemberRequest $request): JsonResponse
+    {
+        $result = $this->authService->registerMember($request->validated());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Registrasi berhasil. Akun menunggu verifikasi pengurus koperasi.',
+            'data' => [
+                'user' => new UserResource($result['user']),
+                'member' => $result['member'],
+            ],
+        ], 201);
     }
 
     /**

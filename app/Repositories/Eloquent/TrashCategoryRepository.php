@@ -58,25 +58,25 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
         return DB::transaction(function () use ($id, $priceData, $userId): TrashCategory {
             $category = $this->findById($id);
 
+            // price_sorted tidak lagi diisi form — pertahankan nilai lama bila tidak dikirim.
+            $priceSorted = $priceData['price_sorted'] ?? $category->price_sorted;
+
             PriceChangeLog::create([
                 'trash_category_id' => $category->id,
                 'old_price_sorted' => $category->price_sorted,
-                'new_price_sorted' => $priceData['price_sorted'],
+                'new_price_sorted' => $priceSorted,
                 'old_price_unsorted' => $category->price_unsorted,
                 'new_price_unsorted' => $priceData['price_unsorted'],
                 'old_price_sell' => $category->price_sell,
                 'new_price_sell' => $priceData['price_sell'],
-                'old_price_admin' => $category->price_admin,
-                'new_price_admin' => $priceData['price_admin'] ?? $category->price_admin,
                 'notes' => $priceData['notes'] ?? null,
                 'changed_by' => $userId,
             ]);
 
             $category->update([
-                'price_sorted' => $priceData['price_sorted'],
+                'price_sorted' => $priceSorted,
                 'price_unsorted' => $priceData['price_unsorted'],
                 'price_sell' => $priceData['price_sell'],
-                'price_admin' => $priceData['price_admin'] ?? $category->price_admin,
             ]);
 
             return $category->fresh();

@@ -14,13 +14,13 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Akun Default untuk Setiap Role
+        // 1. Akun Default untuk Setiap Role (3 role: pengurus, petugas, anggota)
         $admin = User::create([
             'name' => 'Ketua Koperasi',
             'username' => 'ketua',
             'email' => 'ketua@koperasimulyoraharjo.com',
             'password' => Hash::make('password123'),
-            'role' => 'ketua',
+            'role' => 'pengurus',
             'address' => 'Kantor Pusat Koperasi Mulyo Raharjo',
         ]);
 
@@ -58,6 +58,7 @@ class DatabaseSeeder extends Seeder
         $memberWarga = Member::create([
             'user_id' => $userWarga->id,
             'member_category_id' => $catRumah->id,
+            'categories' => ['rumah'],
             'member_code' => 'MBR-202609-0001',
             'name' => $userWarga->name,
             'address' => $userWarga->address,
@@ -117,12 +118,15 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($trashItems as $item) {
+            // price_sell = harga jual ke pengepul (pakai price_sorted);
+            // harga anggota (80%) dihitung on-the-fly dari price_sell.
             TrashCategory::create([
                 'name' => $item['name'],
                 'type' => $item['type'],
                 'unit' => $item['unit'],
                 'price_sorted' => $item['price_sorted'],
                 'price_unsorted' => $item['price_unsorted'],
+                'price_sell' => $item['price_sorted'],
                 'is_active' => true,
             ]);
         }

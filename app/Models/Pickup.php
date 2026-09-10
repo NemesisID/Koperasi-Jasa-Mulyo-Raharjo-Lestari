@@ -23,7 +23,6 @@ class Pickup extends Model
         'total_gross',
         'total_fee',
         'total_net',
-        'source',
         'photo_path',
         'latitude',
         'longitude',
@@ -36,11 +35,6 @@ class Pickup extends Model
             'scheduled_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
-    }
-
-    public function photoUrl(): ?string
-    {
-        return $this->photo_path ? asset('storage/'.$this->photo_path) : null;
     }
 
     public function officer(): BelongsTo
@@ -66,5 +60,10 @@ class Pickup extends Model
     public function scopeSelesai($query)
     {
         return $query->where('status', 'selesai');
+    }
+
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? asset(\Illuminate\Support\Facades\Storage::url($this->photo_path)) : null;
     }
 }

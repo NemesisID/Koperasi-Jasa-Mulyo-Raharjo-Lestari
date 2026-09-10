@@ -152,10 +152,82 @@
 
 ## 🔁 REVISI (revisi.md) — 10 September 2026
 
-> **Penting**: BE hidup adalah folder `backend/` (punya `vendor/` + `.env` + APP_URL:8000 = target proxy FE). Folder root monorepo ini adalah salinan basi — catatan revisi lengkap ada di `backend/progress.md`.
+**Audit jawaban 3 pertanyaan revisi (BE hidup = folder `backend/` ini; folder root monorepo adalah salinan basi):**
 
-**Ringkas audit (detail + bukti di `backend/progress.md`):**
+1. **Registrasi member FE↔BE: BE SUDAH, FE KURANG.** `POST /api/v1/auth/register-member` sudah ada (`routes/api.php` throttle 5/menit → `AuthController::registerMember` → `AuthService::registerMember`, status nonaktif menunggu verifikasi). Namun form FE `Register.jsx` hanya mengirim name/email/password — field wajib BE `username`/`phone`/`address`/`member_type` belum ada di form → registrasi dari UI selalu 422.
+2. **Seeder pickups: SUDAH ADA di `TestingSeeder`** (pickup selesai+items, menunggu jadwal jemput, unit elektronik, batal, + komplain). Bug ditemukan & diperbaiki: (a) `DatabaseSeeder` tidak mengisi `price_sell`/`price_admin` katalog → service timbang & papan harga bernilai 0; kini `price_sell = price_sorted`, `price_admin = 20%`; (b) totals hardcoded TestingSeeder tidak konsisten dengan item-nya (36.500 vs 47.500 aktual) → diluruskan: gross 49.100 (tembaga 0.2kg×128.000 + aqua 5kg×4.700), fee 9.820, net 39.280; unit monitor gudang unsorted 60.000; jurnal fee trx3 ikut disamakan.
+3. **Alur pengaduan warga: SUDAH terintegrasi.** FE `Receipts.jsx` GET/POST `/complaints` cocok `SubmitComplaintRequest`; `ComplaintsDesk.jsx` PATCH `/complaints/{id}/resolve` cocok `ResolveComplaintRequest`; own-check anggota di controller. Tidak diubah.
 
-1. **Registrasi member**: BE sudah punya `POST /auth/register-member`; FE `Register.jsx` kekurangan field wajib `username`/`phone`/`address`/`member_type` → sudah ditambahkan.
-2. **Seeder pickups**: sudah ada di `backend/TestingSeeder` (selesai+ditimbang, menunggu/jadwal, unit, batal, komplain); diperbaiki `price_sell`/`price_admin` kosong di `backend/DatabaseSeeder` + totals tidak konsisten.
-3. **Pengaduan warga**: sudah terintegrasi FE↔BE, tidak diubah.
+**Eksekusi:**
+- [x] **R1**: FE `Register.jsx` + field `username` (autolowercase), `phone`, `member_type` (select rumah/pasar), `address` (textarea) + notifikasi sukses "menunggu verifikasi".
+- [x] **R2**: `DatabaseSeeder` isi `price_sell`/`price_admin`; `TestingSeeder` totals diluruskan konsisten dengan `TrashWeighingService` (sorted − diskon jemput logam 2.000/non-logam 300, fee 20%).
+
+**Tindak lanjut (audit lanjutan FE port Breeze):**
+
+- [x] **F1 — Register tidak ter-route**: `main.jsx` hanya route Login/Pengurus/Anggota/Petugas; `Pages/Auth/*` (port Breeze) dead code & butuh komponen Breeze yang tidak ada. Solusi: halaman baru `Pages/Register.jsx` (style konsisten `Pages/Login.jsx`, field lengkap sesuai `RegisterMemberRequest`) + route `/register` di `main.jsx` + link "Daftar sebagai anggota" di Login. Folder `Pages/Auth` & `Pages/Profile` dead code (delete pending — shell gate down).
+- [x] **F2 — Login aktif sudah benar**: `Pages/Login.jsx` kirim `identity`/`password` cocok `LoginRequest` (port Breeze `Pages/Auth/Login.jsx` yang salah field ikut dead code).
+- [x] **F3 — Change password port Breeze salah field**: FE kirim `password`/`password_confirmation`, BE `ChangePasswordRequest` butuh `new_password` — ada di `Pages/Profile/Partials` yang memang dead code (tidak ter-route), tidak berdampak produksi; folder ikut dihapus bersama F1.
+
+---
+
+## 🔁 REVISI FASE-2 (revisi.md poin 4–5) — 10 September 2026
+
+**Audit:**
+
+4. **Foto timbang (kamera + timestamp + lokasi): BELUM.** `pickups` di BE hidup tidak punya kolom `photo_path`/`latitude`/`longitude` (hanya ada di salinan basi root monorepo), tidak ada endpoint upload, FE `WeighingForm.jsx` tidak ada input kamera/geo. Timestamp timbang sudah ada (`completed_at` terisi server saat weigh-items).
+5. **Riwayat aduan + label proses/selesai: SEBAGIAN.** FE anggota `Receipts.jsx` sudah menampilkan komplain per nota (pill status), BE `/complaints` lengkap. Gap: label mentah enum (`diterima`/`ditolak` dll, tanpa kata "Diproses"/"Selesai"), bug typo `'diproses'` di `ComplaintsDesk.jsx` (nilai DB `proses` → hitungan "Menunggu Tindakan" salah), cek status `'selesai'` mati di ComplaintsDesk (tidak pernah ada di enum complaints).
+
+**Plan eksekusi (ultra-minimal):**
+
+- [x] **R3 (P4 BE)**: migrasi `2026_09_10_000001_add_photo_geo_to_pickups_table.php` (`photo_path`/`latitude`/`longitude` nullable); `PickupController::uploadPhoto` (validasi image jpg/png ≤5MB + lat/long opsional) + route `POST /pickups/{id}/photo` role ketua/pengurus/petugas; `PickupResource` + `photo_url`/`latitude`/`longitude`; model fillable + accessor `photoUrl()`. Timestamp = `completed_at` (sudah ada, tanpa kolom baru). Perlu `php artisan migrate` + `php artisan storage:link`.
+- [x] **R4 (P4 FE)**: `WeighingForm.jsx` — `<input type="file" accept="image/*" capture="environment">` (buka kamera langsung di mobile, native tanpa lib), preview thumbnail + caption timestamp & koordinat GPS via `navigator.geolocation` (opsional, GPS ditolak → foto tetap naik tanpa koordinat), upload FormData ke `/pickups/{id}/photo` setelah weigh-items sukses (gagal upload tidak membatalkan timbangan).
+- [x] **R5 (P5 FE)**: `src/lib/complaint.js` (map label: diajukan→Diajukan, proses→Diproses, diterima→Selesai, ditolak→Ditolak + kelas warna) dipakai di `Receipts.jsx` + `ComplaintsDesk.jsx` (pill tabel, modal detail); typo `diproses` → `proses` (statistik "Menunggu Tindakan" kini benar); cek `selesai` mati dihapus. Tanpa ubah skema — `diterima`/`ditolak` terminal, cukup label tampilan.
+
+---
+
+## 🔁 REVISI FASE-3 (5 poin revisi.md) — 10 September 2026
+
+**Audit (BE hidup = folder `backend/`; root monorepo salinan basi):**
+
+1. **Jadwal pakem**: live BE tidak punya endpoint pickup-schedules sama sekali (FE memanggil `/pickup-schedules` → 404). Rutin jadwal murni artefak FE. → Hapus UI rutin di FE, ganti kartu info jadwal pakem statis.
+2. **Minta jemput nyangkut**: ROOT CAUSE — `Petugas/Index.jsx` "Timbang Sekarang" mengirim `p.member` ke WeighingForm, yang lalu membuat tiket BARU via POST /pickups dan menimbang tiket baru itu; tiket "minta jemput" asli tidak pernah ditimbang → status `menunggu` selamanya. → Kirim objek pickup, WeighingForm menimbang `pickup.id` langsung tanpa buat tiket baru.
+3. **Kategori anggota rumah/pasar**: kolom belum ada. → `members.categories` (json array: rumah|pasar, pilih ≥1), `pickups.location_type` +`jemput_pasar`; form user anggota → checkbox kategori (bukan dropdown "Anggota Terhubung"); role `anggota` masuk validasi CreateUserRequest/UpdateUserRequest; requestPickup menawarkan lokasi sesuai kategori anggota.
+4. **Harga 3 nominal**: Harga Kotor = `price_unsorted` (manual), Harga Jual = `price_sell` (manual), Harga Bersih = 80%×jual (auto, sudah ada accessor `price_member`). Engine: gudang sorted unit price `price_sorted` → `price_sell` agar net anggota pas 80%×jual. `price_sorted` jadi opsional.
+5. **alert/confirm/prompt JS → popup**: 10 titik di 6 file FE.
+
+**Plan eksekusi:**
+
+- [x] **R6 (BE kategori)**: migrasi `2026_09_10_000002` — `members.categories` json nullable + `pickups.location_type` enum +`jemput_pasar`; `Member` fillable+cast, `MemberResource` +categories; `RegisterMemberRequest` `member_type`→`member_types` (array min:1 in:rumah,pasar); `AuthService::registerMember` terima status + member_types (kategori pertama jadi member_category_id utama); `CreateUserRequest`/`UpdateUserRequest` role +anggota & member_types required_if anggota; `UserService` delegate create anggota → registerMember(status aktif), update → sync categories; `UserRepository::paginate` eager `member`; `CreatePickupTicketRequest` location_type +jemput_pasar.
+- [x] **R7 (BE harga + nyangkut)**: `TrashWeighingService` — cek jemput `str_starts_with(location_type,'jemput')`, gudang sorted pakai `price_sell`, isi `officer_id` saat complete tiket buatan anggota; `TrashCategoryService::pickupPrice` base sorted → `price_sell`; `StoreTrashCategoryRequest`/`UpdateTrashPriceRequest` price_sorted opsional; `TrashCategoryRepository::updatePriceWithAudit` price_sorted opsional; seeder member categories.
+- [x] **R8 (FE jadwal + nyangkut)**: hapus rutin di `Popups.jsx`+`Anggota/Index.jsx` (+ kartu pakem, jemput-ulang modal reason), `Petugas/Index.jsx` kirim pickup, `WeighingForm.jsx` prop `initialPickup` (timbang tiket existing), label lokasi +jemput_pasar (PickupMonitor ikut).
+- [x] **R9 (FE kategori + harga)**: `Users.jsx` checkbox Rumah/Pasar + hapus role pengepul + ConfirmPopup; `Popups.jsx` form anggota → POST /users; `requestPickup` lokasi dari `user.member.categories`; `Register.jsx` member_types checkbox; `TrashPrices.jsx` 3 nominal; `PriceBoard.jsx` sesuaikan kartu.
+- [x] **R10 (FE popup)**: ganti semua alert/confirm/prompt (`WajibOverview`, `Withdrawals`, `Pengurus/Index`, `Users`, `TrashPrices`, `Anggota/Index`) → ConfirmPopup/StatusPopup/modal. Grep FE `alert(`/`confirm(`/`prompt(` → 0 sisa.
+- [ ] **R11 (test)**: phpunit — timbang tiket existing (bug #2), harga sorted pakai price_sell, validasi member_types; FE `npm run build`. — 3 test baru sudah ditulis (`TrashWeighingTest`); **belum dijalankan** (tool shell tertutup sementara). Bonus fix saat menunggu: (a) `2026_09_10_000001` hapus `->after('source')` (kolom `source` tidak ada — after() diabaikan sqlite tapi error di mysql); (b) migrasi agregat duplikat `create_database_schema` (bikin semua tabel yang sama dengan migrasi individual 000001–000023, tanpa guard) → pindah ke `2026_09_09_999999_create_database_schema.php` dengan guard `hasTable('users')`, file lama jadi no-op; aman baik untuk fresh sqlite maupun DB live yang mencatat salah satu set. Perlu jalankan: `php artisan test --compact`, `php artisan migrate` (mysql live), FE `npm run build`.
+
+## 🔁 REVISI TAMBAHAN (role) — 10 September 2026
+
+**Role fix jadi 3: pengurus (menyerap ketua), petugas, warga (anggota).**
+
+- [x] **R12 (BE)**: migrasi `2026_09_10_000003_drop_ketua_role.php` — baris `role=ketua` di-upgrade ke `pengurus`, lalu enum `users.role` dipersempit ke `['pengurus','petugas','anggota']`; enum di kedua create-migration ikut dipersempit; `routes/api.php` semua middleware `role:ketua,...` → `role:pengurus,...` (publish SHU & finance-category store kini `role:pengurus`); `CreateUserRequest`/`UpdateUserRequest` Rule::in tanpa ketua; `TrashWeighingService::createTicket` officer check tanpa ketua; `DatabaseSeeder` akun ketua → role pengurus; `ShuDistributionTest` ketua → pengurus (termasuk test `only_pengurus_can_publish`).
+- [x] **R13 (FE)**: `Login.jsx` HOME_BY_ROLE tanpa ketua; `Users.jsx` — role select 3 opsi (Petugas/Pengurus/Warga), filter & StatCard tanpa Ketua, label pill "Warga" via ROLE_LABEL, header desc update; `MemberShell` badge "WARGA". Grep FE `ketua` → 0. (Nilai enum `anggota` dipertahankan di BE — "warga" hanya label tampilan.)
+- [ ] **R14 (verifikasi role)**: `php artisan migrate` di mysql live (ketua lama otomatis jadi pengurus) + test suite + FE build.
+
+---
+
+## 🔁 KONSOLIDASI MONOREPO — 10 September 2026
+
+**Projek backend = root monorepo ini; folder `backend/` nested dihapus** (perintah user). Semua revisi fase-1..3 + role fix dipindah dari `backend/` ke root.
+
+Yang dilakukan:
+- Semua diff `backend/` → root diterapkan (controllers, requests, resources, models, repositories, services, migrations, seeders, routes, tests, progress.md, openapi.json).
+- **Keep versi root (superset)**: `ReportController` + `ReportService` (export xlsx/pdf on-the-fly via `getExportRows` + `per_item_category` — FE memakai `format=xlsx|pdf`), `WalletController` + `WalletService` + `WithdrawCashRequest` (endpoint `POST /wallet/withdraw-cash` dipakai FE `Withdrawals.jsx`; route ditambahkan kembali ke routes/api.php dengan `role:pengurus,petugas`), `app/Exports`, `resources/views/reports`.
+- **Dihapus (lineage basi root)**: `PickupScheduleController`, `PickupSchedule` model, migrasi `add_pengepul_role`/`add_gps_to_pickups`/`create_pickup_schedules`, `app/Console/Commands/*` + entri Schedule di `routes/console.php` (fitur rutin dihapus revisi #1), `MemberRegistrationTest` (mengetes endpoint lama `/members/register` + field `member_type` yang sudah tidak ada).
+- **Bug laten diperbaiki saat port**: `DatabaseSeeder` versi backend mengisi `price_admin` padahal kolom sudah dihapus migrasi fase-3 → seeder crash; dihapus dari seeder (harga anggota 80% dihitung on-the-fly).
+- Catatan: `backend/database/temp.sqlite`, `backend/storage/laravel.log` tidak dipindah (junk). Mojibake UTF-8 di `backend/tests/.../TrashWeighingTest.php` (â€"/â†') tidak ikut — versi root bersih.
+
+Sisa (butuh shell/mysql):
+- [ ] `php artisan test --compact` dari root
+- [ ] `php artisan migrate` + `php artisan storage:link` (mysql live; tentukan DB: root .env `kjps-mural` vs backend .env `pppgs`)
+- [ ] Hapus folder `backend/` setelah verifikasi
+- [ ] FE `npm run build`
+- Gap diketahui (bukan bagian revisi): `public/docs/openapi.json` masih menyebut ketua/pengepul (46×) dan belum mendokumentasikan `/wallet/withdraw-cash` — perlu regenerasi docs terpisah.

@@ -18,9 +18,9 @@ class CreatePickupTicketRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'member_id' => ['nullable', 'integer', 'exists:members,id'],
-            'scheduled_at' => ['nullable', 'date', 'after_or_equal:now'],
-            'location_type' => ['required', Rule::in(['gudang', 'jemput_rumah'])],
+            'member_id' => ['required', 'integer', 'exists:members,id'],
+            'scheduled_at' => ['nullable', 'date'],
+            'location_type' => ['required', Rule::in(['gudang', 'jemput_rumah', 'jemput_pasar'])],
             'is_sorted' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string', 'max:500'],
         ];

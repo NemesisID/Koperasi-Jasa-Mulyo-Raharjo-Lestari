@@ -42,6 +42,25 @@
         }
       }
     },
+    "/auth/register-member": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registrasi mandiri calon anggota",
+        "description": "Registrasi calon anggota baru (status awal pending simpanan pokok). Rate limit 5x/menit.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterMemberRequest" } } }
+        },
+        "responses": {
+          "201": {
+            "description": "User & member dibuat",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } }
+          },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
     "/auth/me": {
       "get": {
         "tags": ["Auth"],
@@ -189,21 +208,6 @@
         }
       }
     },
-    "/members/register": {
-      "post": {
-        "tags": ["Keanggotaan"],
-        "summary": "Registrasi anggota oleh pengurus",
-        "description": "Buat user (role `anggota`, + password) dan member sekaligus dalam satu transaksi. `member_code` autofill (`MBR-YYYYMM-XXXX`), `name` sama, `username` opsional (default dari email), member category `rumah`/`pasar`. Satu email/username hanya bisa diregistrasi sekali. Role: ketua, pengurus.",
-        "requestBody": {
-          "required": true,
-          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RegisterMemberRequest" } } }
-        },
-        "responses": {
-          "201": { "description": "User & member dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
-          "422": { "$ref": "#/components/responses/ValidationError" }
-        }
-      }
-    },
     "/members": {
       "get": {
         "tags": ["Keanggotaan"],
@@ -217,6 +221,19 @@
         ],
         "responses": {
           "200": { "description": "Daftar anggota (paginated)", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
+        }
+      },
+      "post": {
+        "tags": ["Keanggotaan"],
+        "summary": "Buat anggota",
+        "description": "Registrasi anggota oleh pengurus. `member_code` digenerate otomatis (`MBR-202609-XXXX`). Role: ketua, pengurus.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/MemberStoreRequest" } } }
+        },
+        "responses": {
+          "201": { "description": "Member dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
+          "422": { "$ref": "#/components/responses/ValidationError" }
         }
       }
     },
@@ -333,7 +350,7 @@
         "parameters": [{ "$ref": "#/components/parameters/Id" }],
         "requestBody": {
           "required": true,
-          "content": { "application/json": { "schema": { "type": "object", "properties": { "price_sell": { "type": "number", "example": 5000, "description": "Harga jual raw" }, "price_admin": { "type": "number", "example": 1000, "description": "Biaya admin per unit — input manual" }, "price_sorted": { "type": "number", "example": 5000 }, "price_unsorted": { "type": "number", "example": 2200 }, "notes": { "type": "string", "example": "Update WA paguyuban" } } } } }
+          "content": { "application/json": { "schema": { "type": "object", "properties": { "price_sorted": { "type": "number", "example": 5000 }, "price_unsorted": { "type": "number", "example": 2200 }, "notes": { "type": "string", "example": "Update WA paguyuban" } } } } }
         },
         "responses": {
           "200": { "description": "Harga ter-update", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
@@ -360,7 +377,6 @@
         "description": "Daftar order/jadwal penjemputan sampah. Role: ketua, pengurus, petugas.",
         "parameters": [
           { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "mis. `menunggu`, `selesai`" },
-          { "name": "source", "in": "query", "schema": { "type": "string", "enum": ["manual", "rutin", "auto"] }, "description": "Filter sumber tiket" },
           { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" } },
           { "name": "page", "in": "query", "schema": { "type": "integer" } }
         ],
@@ -370,8 +386,8 @@
       },
       "post": {
         "tags": ["Penjemputan"],
-        "summary": "Buat tiket setor/jemput sampah (pesan ala gojek)",
-        "description": "Permintaan on-demand per anggota — seperti pesanan gojek. Anggota tanpa `member_id` otomatis pakai member miliknya. Role: ketua, pengurus, petugas, anggota.",
+        "summary": "Buat tiket setor/jemput sampah",
+        "description": "Role: ketua, pengurus, petugas, anggota.",
         "requestBody": {
           "required": true,
           "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PickupStoreRequest" } } }
@@ -379,20 +395,6 @@
         "responses": {
           "201": { "description": "Pickup dibuat, mengembalikan `pickup_id`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
           "422": { "$ref": "#/components/responses/ValidationError" }
-        }
-      }
-    },
-    "/pickups/generate-routine": {
-      "post": {
-        "tags": ["Penjemputan"],
-        "summary": "Trigger pickup rutin bulanan",
-        "description": "Buat tiket penjemputan rutin (`source=rutin`) untuk semua anggota aktif. Jalan otomatis via scheduler tiap awal bulan; endpoint ini untuk trigger manual. Role: ketua, pengurus.",
-        "requestBody": {
-          "required": false,
-          "content": { "application/json": { "schema": { "type": "object", "properties": {} } } }
-        },
-        "responses": {
-          "200": { "description": "Tiket rutin dibuat", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } }
         }
       }
     },
@@ -405,32 +407,6 @@
         "responses": {
           "200": { "description": "Detail pickup", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
           "404": { "$ref": "#/components/responses/NotFound" }
-        }
-      }
-    },
-    "/pickups/{id}/photo": {
-      "post": {
-        "tags": ["Penjemputan"],
-        "summary": "Upload foto dokumentasi pengambilan",
-        "description": "Petugas mengunggah foto dokumentasi saat pengambilan sampah. Multipart form-data, field `photo` (jpg/png, maks 5MB). Role: ketua, pengurus, petugas.",
-        "parameters": [{ "$ref": "#/components/parameters/Id" }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": ["photo"],
-                "properties": {
-                  "photo": { "type": "string", "format": "binary", "description": "File foto (jpg/jpeg/png)" }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Mengembalikan `photo_url`", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Envelope" } } } },
-          "422": { "$ref": "#/components/responses/ValidationError" }
         }
       }
     },
@@ -903,13 +879,12 @@
       },
       "RegisterMemberRequest": {
         "type": "object",
-        "required": ["name", "email", "password", "member_type", "phone", "address"],
+        "required": ["name", "email", "username", "password", "nik"],
         "properties": {
           "name": { "type": "string" },
           "email": { "type": "string", "format": "email" },
-          "username": { "type": "string", "description": "Opsional; default dari email" },
+          "username": { "type": "string" },
           "password": { "type": "string", "format": "password" },
-          "member_type": { "type": "string", "enum": ["rumah", "pasar"], "description": "Kategori anggota" },
           "phone": { "type": "string" },
           "address": { "type": "string" },
           "nik": { "type": "string", "description": "Nomor Induk Kependudukan" }
@@ -955,6 +930,18 @@
           "is_active": { "type": "boolean" }
         }
       },
+      "MemberStoreRequest": {
+        "type": "object",
+        "required": ["user_id", "member_category_id", "name", "join_date"],
+        "properties": {
+          "user_id": { "type": "integer" },
+          "member_category_id": { "type": "integer" },
+          "name": { "type": "string" },
+          "address": { "type": "string" },
+          "phone": { "type": "string" },
+          "join_date": { "type": "string", "format": "date" }
+        }
+      },
       "MemberUpdateRequest": {
         "type": "object",
         "properties": {
@@ -966,25 +953,24 @@
       },
       "TrashCategoryRequest": {
         "type": "object",
-        "required": ["name", "type", "unit", "price_sell"],
+        "required": ["name", "type", "unit"],
         "properties": {
           "name": { "type": "string", "example": "PET Botol Bening" },
           "type": { "type": "string", "enum": ["organik", "anorganik", "campur"] },
           "unit": { "type": "string", "example": "kg" },
-          "price_sell": { "type": "number", "example": 5000, "description": "Harga jual raw ke pengepul/marketplace" },
-          "price_admin": { "type": "number", "example": 1000, "description": "Biaya admin per unit — input manual (guideline 20% dari harga jual)" },
-          "price_member": { "type": "number", "example": 4000, "description": "Harga bersih untuk anggota = price_sell - price_admin (read-only, dihitung sistem)" },
+          "price_sorted": { "type": "number", "example": 5000 },
+          "price_unsorted": { "type": "number", "example": 2200 },
+          "price_pickup_deduction": { "type": "number", "description": "Potongan tarif untuk penjemputan vs antar gudang" },
           "is_active": { "type": "boolean" }
         }
       },
       "PickupStoreRequest": {
         "type": "object",
-        "required": ["location_type"],
+        "required": ["member_id", "scheduled_at", "location_type"],
         "properties": {
-          "member_id": { "type": "integer", "description": "Opsional untuk anggota (auto member miliknya); wajib untuk petugas/pengurus" },
+          "member_id": { "type": "integer" },
           "scheduled_at": { "type": "string", "format": "date-time" },
           "location_type": { "type": "string", "enum": ["gudang", "jemput_rumah"] },
-          "is_sorted": { "type": "boolean" },
           "notes": { "type": "string" }
         }
       },
