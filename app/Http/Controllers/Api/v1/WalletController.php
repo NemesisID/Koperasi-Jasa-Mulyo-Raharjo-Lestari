@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Wallet\ApproveWithdrawRequest;
+use App\Http\Requests\Wallet\WithdrawCashRequest;
 use App\Http\Requests\Wallet\WithdrawRequestForm;
 use App\Http\Resources\Wallet\WalletMutationResource;
 use App\Http\Resources\Wallet\WithdrawRequestResource;
@@ -57,6 +58,26 @@ class WalletController extends Controller
             'success' => true,
             'message' => 'Pengajuan penarikan saldo berhasil dibuat, menunggu verifikasi pengurus.',
             'data' => new WithdrawRequestResource($withdraw->load('member:id,member_code,name')),
+        ], 201);
+    }
+
+    /**
+     * POST /api/v1/wallet/withdraw-cash — penarikan tunai oleh petugas/pengurus
+     * (alur.md): search member, isi nominal + bukti foto, saldo langsung terpotong.
+     */
+    public function withdrawCash(WithdrawCashRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        if ($request->hasFile('photo')) {
+            $data['photo'] = $request->file('photo')->store('withdrawals', 'public');
+        }
+
+        $withdraw = $this->walletService->withdrawCash($data, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penarikan tunai berhasil. Saldo anggota telah dipotong dan kas tercatat keluar.',
+            'data' => new WithdrawRequestResource($withdraw->load('member:id,member_code,name', 'processor:id,name')),
         ], 201);
     }
 

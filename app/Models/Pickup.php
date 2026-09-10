@@ -25,6 +25,8 @@ class Pickup extends Model
         'total_net',
         'source',
         'photo_path',
+        'latitude',
+        'longitude',
     ];
 
     protected function casts(): array

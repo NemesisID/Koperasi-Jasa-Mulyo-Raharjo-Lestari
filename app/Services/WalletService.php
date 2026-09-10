@@ -143,6 +143,47 @@ class WalletService
     }
 
     /**
+     * Penarikan tunai oleh petugas/pengurus (alur.md): saldo langsung terpotong,
+     * jurnal kas keluar tercatat, bukti foto disimpan.
+     */
+    public function withdrawCash(array $data, User $officer): WithdrawRequest
+    {
+        return DB::transaction(function () use ($data, $officer): WithdrawRequest {
+            $summary = $this->getMemberWalletSummary($data['member_id']);
+
+            if ($data['amount'] > $summary['available_balance']) {
+                throw new BusinessLogicException(
+                    "Saldo tidak mencukupi. Saldo tersedia Rp".number_format($summary['available_balance'], 0, ',', '.')
+                    .", diminta Rp".number_format($data['amount'], 0, ',', '.').'.'
+                );
+            }
+
+            $cashoutCategoryId = $this->transactionRepository->findCategoryIdByName('Pencairan Saldo Sampah / Cashout');
+            $this->transactionRepository->create([
+                'member_id' => $data['member_id'],
+                'category_id' => $cashoutCategoryId,
+                'type' => 'expense',
+                'amount' => $data['amount'],
+                'description' => "Penarikan tunai oleh petugas".(isset($data['notes']) ? " — {$data['notes']}" : ''),
+                'payment_method' => 'tunai',
+                'status' => 'berhasil',
+                'handled_by' => $officer->id,
+            ]);
+
+            return WithdrawRequest::create([
+                'member_id' => $data['member_id'],
+                'amount' => $data['amount'],
+                'method' => 'tunai',
+                'status' => 'disetujui',
+                'proof_file' => $data['photo'] ?? null,
+                'notes' => $data['notes'] ?? null,
+                'processed_by' => $officer->id,
+                'processed_at' => now(),
+            ]);
+        });
+    }
+
+    /**
      * Proses approval: approve → jurnal pengeluaran kas + status disetujui;
      * reject → status ditolak (saldo tidak tersentuh).
      */

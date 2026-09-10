@@ -98,55 +98,51 @@ class ReportService
             ->get()
             ->map(fn ($r) => ['desa' => $r->desa, 'rw' => $r->rw, 'total_kg' => round((float) $r->total_kg, 2)]);
 
+        // Pendapatan per kategori sampah (rupiah, dari nota timbang)
+        $perItemCategory = (clone $query)
+            ->selectRaw('trash_categories.name, trash_categories.type, SUM(pickup_items.weight_kg) as total_kg, SUM(pickup_items.total_value) as total_value')
+            ->groupBy('trash_categories.id', 'trash_categories.name', 'trash_categories.type')
+            ->get()
+            ->map(fn ($r) => [
+                'name' => $r->name,
+                'type' => $r->type,
+                'total_kg' => round((float) $r->total_kg, 2),
+                'total_value' => (float) $r->total_value,
+            ]);
+
         return [
             'period' => [
                 'start' => $filters['start_date'] ?? null,
                 'end' => $filters['end_date'] ?? null,
             ],
             'per_category' => $perCategory->all(),
+            'per_item_category' => $perItemCategory->all(),
             'per_wilayah' => $perWilayah->all(),
             'total_kg' => round($perCategory->sum('total_kg'), 2),
         ];
     }
 
     /**
-     * Export laporan finalized sebagai file stream.
-     * ponytail: CSV (Excel-compatible, stdlib fputcsv) — tambahkan PhpSpreadsheet/dompdf
-     * jika klien butuh styling XLSX/PDF asli.
+     * Baris export (flatten) untuk laporan on-the-flight — tanpa perlu baris
+     * Report finalized di DB.
      *
-     * @return array{filename: string, headers: array<string, string>, content: callable}
+     * @return array{filename: string, rows: array<int, array<int, mixed>>}
      */
-    public function exportReport(int $reportId): array
+    public function getExportRows(string $type, string $start, string $end): array
     {
-        $report = \App\Models\Report::finalized()->findOrFail($reportId);
-
-        $data = match ($report->type) {
-            'laba_rugi' => $this->getFinancialReport($report->period_start->toDateString(), $report->period_end->toDateString()),
-            default => $this->getTrashVolumeReport(['start_date' => $report->period_start->toDateString(), 'end_date' => $report->period_end->toDateString()]),
+        $data = match ($type) {
+            'laba_rugi' => $this->getFinancialReport($start, $end),
+            default => $this->getTrashVolumeReport(['start_date' => $start, 'end_date' => $end]),
         };
 
-        $filename = 'laporan-'.$report->type.'-'.$report->id.'.csv';
-
         return [
-            'filename' => $filename,
-            'headers' => [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => 'attachment; filename="'.$filename.'"',
-            ],
-            'content' => function () use ($data) {
-                $fh = fopen('php://output', 'w');
-
-                foreach ($this->flatten($data) as $row) {
-                    fputcsv($fh, $row);
-                }
-
-                fclose($fh);
-            },
+            'filename' => 'laporan-'.$type.'-'.now()->format('Ymd'),
+            'rows' => iterator_to_array($this->flatten($data)),
         ];
     }
 
     /**
-     * Flatten array laporan multi-level jadi baris CSV.
+     * Flatten array laporan multi-level jadi baris CSV/XLSX/PDF.
      *
      * @return \Generator<int, array<int, mixed>>
      */

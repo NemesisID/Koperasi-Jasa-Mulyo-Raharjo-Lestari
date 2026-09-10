@@ -81,11 +81,15 @@ class PickupController extends Controller
     {
         $request->validate([
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
         ]);
 
         $pickup = $this->weighingService->getPickup($id);
         $pickup->update([
             'photo_path' => $request->file('photo')->store('pickups', 'public'),
+            'latitude' => $request->input('latitude'),
+            'longitude' => $request->input('longitude'),
         ]);
 
         return response()->json([

@@ -147,3 +147,15 @@
 - [x] **Task 12.1**: Seluruh route modul 1–11 terdaftar di `routes/api.php` (54 route, prefix `api/v1`, proteksi `auth:sanctum` + `role:` per modul).
 - [x] **Task 12.2**: Test suite PHPUnit `tests/Feature/Api/` — `ApiTestCase` (seed finance categories + kategori sampah, RefreshDatabase sqlite `:memory:`), 24 test / 73 assertion hijau: `AuthTest` (login/422/401/me/logout-revoke — guard di-reset via `Auth::forgetGuards()` antar request karena user guard di-cache per app instance dalam test), `TrashWeighingTest` (fee 20%, diskon jemput, timbang ganda 400, anggota 403), `SavingsBillingTest`, `ShuDistributionTest`, `GlobalExceptionHandlerTest` (401/403/404/405/422/400).
 - [x] **Catatan**: PHPUnit 12 memerlukan attribute `#[Test]`, bukan anotasi `/** @test */`. Smoke script `smoke-modul*.php` sudah dihapus — coverage penuh di PHPUnit; data uji manual tinggal `php artisan db:seed` (DatabaseSeeder).
+
+---
+
+## 🔁 REVISI (revisi.md) — 10 September 2026
+
+> **Penting**: BE hidup adalah folder `backend/` (punya `vendor/` + `.env` + APP_URL:8000 = target proxy FE). Folder root monorepo ini adalah salinan basi — catatan revisi lengkap ada di `backend/progress.md`.
+
+**Ringkas audit (detail + bukti di `backend/progress.md`):**
+
+1. **Registrasi member**: BE sudah punya `POST /auth/register-member`; FE `Register.jsx` kekurangan field wajib `username`/`phone`/`address`/`member_type` → sudah ditambahkan.
+2. **Seeder pickups**: sudah ada di `backend/TestingSeeder` (selesai+ditimbang, menunggu/jadwal, unit, batal, komplain); diperbaiki `price_sell`/`price_admin` kosong di `backend/DatabaseSeeder` + totals tidak konsisten.
+3. **Pengaduan warga**: sudah terintegrasi FE↔BE, tidak diubah.

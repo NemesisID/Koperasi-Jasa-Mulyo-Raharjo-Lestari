@@ -11,3 +11,6 @@ Artisan::command('inspire', function () {
 // Pickup rutin bulanan: buat tiket jemput untuk semua anggota aktif (source='rutin').
 // ponytail: endpoint /pickups/generate-routine juga bisa trigger manual.
 Schedule::command('pickups:generate-routine')->monthlyOn(1, '06:00');
+
+// Rutinan per-warga (hari + slot pagi/siang/sore): generate tiket untuk besok tiap pagi.
+Schedule::command('pickups:generate-scheduled')->dailyAt('05:00');

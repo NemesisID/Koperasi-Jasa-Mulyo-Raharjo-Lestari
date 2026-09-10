@@ -27,6 +27,8 @@ class PickupResource extends JsonResource
             'status' => $this->status,
             'source' => $this->source,
             'photo_url' => $this->photoUrl(),
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
             'scheduled_at' => $this->scheduled_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'total_gross' => $this->total_gross,

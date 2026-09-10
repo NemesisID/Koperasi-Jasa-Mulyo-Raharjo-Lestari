@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\v1\LogisticsController;
 use App\Http\Controllers\Api\v1\MemberCategoryController;
 use App\Http\Controllers\Api\v1\MemberController;
 use App\Http\Controllers\Api\v1\PickupController;
+use App\Http\Controllers\Api\v1\PickupScheduleController;
 use App\Http\Controllers\Api\v1\ReportController;
 use App\Http\Controllers\Api\v1\SavingsController;
 use App\Http\Controllers\Api\v1\ShuController;
@@ -70,16 +71,23 @@ Route::prefix('v1')->group(function () {
 
     // Operasional bank sampah: penjemputan & timbang
     Route::prefix('pickups')->middleware('auth:sanctum')->group(function () {
-        Route::get('/', [PickupController::class, 'index'])->middleware('role:ketua,pengurus,petugas,anggota');
+        Route::get('/', [PickupController::class, 'index'])->middleware('role:ketua,pengurus,petugas,pengepul,anggota');
         // Trigger manual pickup rutin bulanan (auto trigger)
         Route::post('/generate-routine', [PickupController::class, 'generateRoutine'])->middleware('role:ketua,pengurus');
         Route::post('/', [PickupController::class, 'store'])->middleware('role:ketua,pengurus,petugas,anggota');
-        Route::post('/{id}/photo', [PickupController::class, 'uploadPhoto'])->middleware('role:ketua,pengurus,petugas');
-        Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:ketua,pengurus,petugas');
+        Route::post('/{id}/photo', [PickupController::class, 'uploadPhoto'])->middleware('role:ketua,pengurus,petugas,pengepul');
+        Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:ketua,pengurus,petugas,pengepul');
         // Own-check untuk role anggota ada di controller (show/receipt)
-        Route::get('/{id}', [PickupController::class, 'show'])->middleware('role:ketua,pengurus,petugas,anggota');
-        Route::get('/{id}/receipt', [PickupController::class, 'receipt'])->middleware('role:ketua,pengurus,petugas,anggota');
+        Route::get('/{id}', [PickupController::class, 'show'])->middleware('role:ketua,pengurus,petugas,pengepul,anggota');
+        Route::get('/{id}/receipt', [PickupController::class, 'receipt'])->middleware('role:ketua,pengurus,petugas,pengepul,anggota');
         Route::patch('/{id}/cancel', [PickupController::class, 'cancel'])->middleware('role:ketua,pengurus');
+    });
+
+    // Rutinan penjemputan per-warga (anggota)
+    Route::prefix('pickup-schedules')->middleware(['auth:sanctum', 'role:anggota'])->group(function () {
+        Route::get('/', [PickupScheduleController::class, 'index']);
+        Route::post('/', [PickupScheduleController::class, 'store']);
+        Route::delete('/{id}', [PickupScheduleController::class, 'destroy']);
     });
 
     // Pengaduan & komplain nota timbang
@@ -116,6 +124,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/summary', [WalletController::class, 'summary'])->middleware('role:ketua,pengurus,anggota');
         Route::get('/mutations', [WalletController::class, 'mutations'])->middleware('role:ketua,pengurus,anggota');
         Route::post('/withdraw', [WalletController::class, 'withdraw'])->middleware('role:anggota');
+        Route::post('/withdraw-cash', [WalletController::class, 'withdrawCash'])->middleware('role:ketua,pengurus,petugas');
         Route::get('/withdraw-requests', [WalletController::class, 'withdrawRequests'])->middleware('role:ketua,pengurus');
         Route::patch('/withdraw-requests/{id}/approve', [WalletController::class, 'approveWithdrawal'])->middleware('role:ketua,pengurus');
     });
@@ -124,7 +133,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('shu')->middleware('auth:sanctum')->group(function () {
         Route::get('/periods', [ShuController::class, 'periods'])->middleware('role:ketua,pengurus');
         Route::post('/simulate', [ShuController::class, 'simulate'])->middleware('role:ketua,pengurus');
-        Route::post('/publish', [ShuController::class, 'publish'])->middleware('role:ketua');
+        Route::post('/publish', [ShuController::class, 'publish'])->middleware('role:ketua,pengurus');
         Route::get('/my-history', [ShuController::class, 'myHistory'])->middleware('role:anggota');
     });
 
