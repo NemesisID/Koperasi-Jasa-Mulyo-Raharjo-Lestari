@@ -165,8 +165,7 @@ class ShuCalculationEngine
      * Simpan hasil simulasi sebagai draft distribusi (belum memotong kas apa pun).
      */
     public function saveDraft(array $simulation, User $authorizer): ShuDistribution
-    {
-        return DB::transaction(function () use ($simulation, $authorizer): ShuDistribution {
+    {        return DB::transaction(function () use ($simulation, $authorizer): ShuDistribution {
             if (ShuDistribution::where('year', $simulation['year'])->exists()) {
                 throw new BusinessLogicException("Draft/periode SHU tahun {$simulation['year']} sudah ada.");
             }
@@ -183,6 +182,36 @@ class ShuCalculationEngine
             $this->shuRepository->saveMemberRows($distribution->id, $simulation['members']);
 
             return $distribution;
+        });
+    }
+
+    /**
+     * Perbarui draft SHU (total dibagikan diubah pengurus): hitung ulang simulasi
+     * dan ganti rincian per anggota. Hanya untuk status draft — sudah dibagikan final.
+     */
+    public function updateDraft(int $distributionId, float $netProfit, User $authorizer): ShuDistribution
+    {
+        return DB::transaction(function () use ($distributionId, $netProfit, $authorizer): ShuDistribution {
+            $distribution = ShuDistribution::lockForUpdate()->findOrFail($distributionId);
+
+            if ($distribution->status === 'dibagikan') {
+                throw new BusinessLogicException("SHU tahun {$distribution->year} sudah dibagikan — tidak dapat diubah.");
+            }
+
+            $simulation = $this->simulateDistribution($distribution->year, $netProfit);
+
+            $distribution->update([
+                'total_shu' => $simulation['shu_pool'],
+                'reserve_amount' => $simulation['reserve_amount'],
+                'distributed_amount' => $simulation['total_distributed'],
+                'recipient_count' => $simulation['recipient_count'],
+                'handled_by' => $authorizer->id,
+            ]);
+
+            $distribution->shuMembers()->delete();
+            $this->shuRepository->saveMemberRows($distribution->id, $simulation['members']);
+
+            return $distribution->fresh();
         });
     }
 

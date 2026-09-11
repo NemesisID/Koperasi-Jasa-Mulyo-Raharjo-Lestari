@@ -26,12 +26,13 @@ class UserService
         return $this->userRepository->findWithMember($id);
     }
 
-    public function createUser(array $data): User
+    public function createUser(array $data, ?User $actor = null): User
     {
         // Akun anggota lewat alur registrasi member: kode anggota, kategori rumah/pasar,
         // dan simpanan pokok otomatis — dibuat pengurus jadi langsung aktif.
+        // Actor = pengurus yang login → jurnal simpanan pokok dicatat atas namanya.
         if (($data['role'] ?? null) === 'anggota') {
-            return $this->authService->registerMember($data, 'aktif')['user'];
+            return $this->authService->registerMember($data, 'aktif', $actor)['user'];
         }
 
         return $this->userRepository->create($data);

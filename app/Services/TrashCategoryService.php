@@ -36,8 +36,11 @@ class TrashCategoryService
         return $this->trashCategoryRepository->create($data);
     }
 
-    public function updateCategory(int $id, array $data): TrashCategory
+    public function updateCategory(int $id, array $data, ?User $actor = null): TrashCategory
     {
+        // actor untuk audit log perubahan harga (edit form juga bisa mengubah harga).
+        $data['changed_by'] = $actor?->id ?? auth()->id();
+
         return $this->trashCategoryRepository->update($id, $data);
     }
 

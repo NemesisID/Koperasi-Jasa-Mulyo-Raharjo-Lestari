@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('shu')->middleware('auth:sanctum')->group(function () {
         Route::get('/periods', [ShuController::class, 'periods'])->middleware('role:pengurus');
         Route::post('/simulate', [ShuController::class, 'simulate'])->middleware('role:pengurus');
+        Route::patch('/drafts/{id}', [ShuController::class, 'updateDraft'])->middleware('role:pengurus');
         Route::post('/publish', [ShuController::class, 'publish'])->middleware('role:pengurus');
         Route::get('/my-history', [ShuController::class, 'myHistory'])->middleware('role:anggota');
     });

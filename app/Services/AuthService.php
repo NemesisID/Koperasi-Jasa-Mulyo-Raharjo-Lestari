@@ -49,9 +49,9 @@ class AuthService
      * @param  array{member_types: array<int, string>}  $data
      * @return array{user: User, member: Member}
      */
-    public function registerMember(array $data, string $status = 'nonaktif'): array
+    public function registerMember(array $data, string $status = 'nonaktif', ?User $creator = null): array
     {
-        [$user, $member] = DB::transaction(function () use ($data, $status): array {
+        [$user, $member] = DB::transaction(function () use ($data, $status, $creator): array {
             $user = $this->userRepository->create([
                 'name' => $data['name'],
                 'username' => $data['username'],
@@ -64,6 +64,10 @@ class AuthService
 
             $memberTypes = array_values(array_unique($data['member_types']));
 
+            // Alamat umum member otomatis dari alamat kategori (rumah/pasar) bila
+            // tidak dikirim — supaya alamat penjemputan selalu terisi (issue #5).
+            $memberAddress = $data['address'] ?? $data['address_rumah'] ?? $data['address_pasar'] ?? null;
+
             $member = $this->memberRepository->create([
                 'user_id' => $user->id,
                 // Kategori pertama jadi kategori utama (kolom wajib); sisanya di kolom json.
@@ -71,16 +75,17 @@ class AuthService
                 'categories' => $memberTypes,
                 'member_code' => $this->memberRepository->generateMemberCode(),
                 'name' => $data['name'],
-                'address' => $data['address'] ?? null,
-                'address_rumah' => $data['address_rumah'] ?? null,
-                'address_pasar' => $data['address_pasar'] ?? null,
+                'address' => $memberAddress,
+                'address_rumah' => $data['address_rumah'] ?? $memberAddress,
+                'address_pasar' => $data['address_pasar'] ?? $memberAddress,
                 'phone' => $data['phone'] ?? null,
                 'status' => $status,
                 'join_date' => now()->toDateString(),
             ]);
 
             // Simpanan pokok Rp50.000 per kategori member otomatis saat akun anggota dibuat.
-            $this->savingsService->recordInitialPokok($member, $user);
+            // Petugas jurnal = pengurus yang login (creator), bukan anggota yang didaftarkan (issue #1).
+            $this->savingsService->recordInitialPokok($member, $creator);
 
             return [$user, $member];
         });

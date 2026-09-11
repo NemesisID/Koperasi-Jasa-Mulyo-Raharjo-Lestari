@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Exceptions\BusinessLogicException;
 use App\Models\FinanceCategory;
 use App\Models\Transaction;
 use App\Repositories\Contracts\TransactionRepositoryInterface;
@@ -47,6 +48,14 @@ class TransactionRepository implements TransactionRepositoryInterface
 
     public function findCategoryIdByName(string $name): ?int
     {
-        return FinanceCategory::where('name', $name)->value('id');
+        $id = FinanceCategory::where('name', $name)->value('id');
+
+        // Kategori jurnal sistem wajib ada — null membuat SQL 1048 (category_id
+        // cannot be null) di semua service pemanggil. Pesan jelas > stack trace.
+        if ($id === null) {
+            throw new BusinessLogicException("Kategori jurnal kas '{$name}' tidak ditemukan — jalankan ulang database seeder.");
+        }
+
+        return $id;
     }
 }

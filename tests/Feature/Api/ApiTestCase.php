@@ -25,6 +25,7 @@ abstract class ApiTestCase extends TestCase
             ['name' => 'Potongan Admin Sampah 20%', 'type' => 'income', 'group_type' => 'operasional'],
             ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Beli Sampah Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
         ]);
 
         TrashCategory::create([

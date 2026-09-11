@@ -14,6 +14,31 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        // 3. Kategori Keuangan (Chart of Accounts Kas) — idempotent: aman dijalankan
+        // ulang di DB live untuk melengkapi kategori sistem yang belum ada
+        // (penyebab SQL 1048 category_id null saat timbang/SHU).
+        foreach ([
+            ['name' => 'Simpanan Pokok', 'type' => 'income', 'group_type' => 'simpanan_pokok'],
+            ['name' => 'Simpanan Wajib', 'type' => 'income', 'group_type' => 'simpanan_wajib'],
+            ['name' => 'Simpanan Sukarela', 'type' => 'income', 'group_type' => 'operasional'],
+            ['name' => 'Tipping Fee Pengangkutan', 'type' => 'income', 'group_type' => 'tipping_fee'],
+            ['name' => 'Potongan Admin Sampah 20%', 'type' => 'income', 'group_type' => 'operasional'],
+            ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Beli Sampah Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
+            // Kategori jualan sampah (marketplace) + pemasukan dari sampah untuk labeling cashflow.
+            ['name' => 'Penjualan Sampah', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
+            ['name' => 'Pemasukan Sampah Lainnya', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
+        ] as $category) {
+            FinanceCategory::firstOrCreate(['name' => $category['name']], $category);
+        }
+
+        // Data awal hanya untuk DB kosong (fresh install) — jangan duplikat di DB live.
+        if (User::exists()) {
+            return;
+        }
+
         // 1. Akun Default untuk Setiap Role (3 role: pengurus, petugas, anggota)
         $admin = User::create([
             'name' => 'Ketua Koperasi',
@@ -65,22 +90,6 @@ class DatabaseSeeder extends Seeder
             'phone' => '081234567890',
             'status' => 'aktif',
             'join_date' => now()->toDateString(),
-        ]);
-
-        // 3. Kategori Keuangan (Chart of Accounts Kas)
-        FinanceCategory::insert([
-            ['name' => 'Simpanan Pokok', 'type' => 'income', 'group_type' => 'simpanan_pokok'],
-            ['name' => 'Simpanan Wajib', 'type' => 'income', 'group_type' => 'simpanan_wajib'],
-            ['name' => 'Simpanan Sukarela', 'type' => 'income', 'group_type' => 'operasional'],
-            ['name' => 'Tipping Fee Pengangkutan', 'type' => 'income', 'group_type' => 'tipping_fee'],
-            ['name' => 'Potongan Admin Sampah 20%', 'type' => 'income', 'group_type' => 'operasional'],
-            ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
-            ['name' => 'Beli Sampah Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
-            ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
-            ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
-            // Kategori jualan sampah (marketplace) + pemasukan dari sampah untuk labeling cashflow.
-            ['name' => 'Penjualan Sampah', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
-            ['name' => 'Pemasukan Sampah Lainnya', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
         ]);
 
         // 4. Katalog Sampah & Harga Awal (Referensi PRD §5.1.1 UD Sapu Jagad Ponorogo)

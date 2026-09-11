@@ -54,6 +54,24 @@ class ShuController extends Controller
     }
 
     /**
+     * PATCH /api/v1/shu/drafts/{id} — perbarui total draft SHU (recalc per anggota)
+     */
+    public function updateDraft(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'net_profit' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        $distribution = $this->shuEngine->updateDraft($id, (float) $request->input('net_profit'), $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => "Draft SHU tahun {$distribution->year} berhasil diperbarui.",
+            'data' => new ShuPeriodResource($distribution->load('handledBy:id,name')->loadCount('shuMembers')),
+        ]);
+    }
+
+    /**
      * POST /api/v1/shu/publish — finalisasi & posting SHU massal
      */
     public function publish(PublishShuRequest $request): JsonResponse

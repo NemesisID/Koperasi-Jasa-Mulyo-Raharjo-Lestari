@@ -18,6 +18,8 @@ class PriceHistoryResource extends JsonResource
             'new_price_sorted' => $this->new_price_sorted,
             'old_price_unsorted' => $this->old_price_unsorted,
             'new_price_unsorted' => $this->new_price_unsorted,
+            'old_price_sell' => $this->old_price_sell,
+            'new_price_sell' => $this->new_price_sell,
             'notes' => $this->notes,
             'changed_by' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,

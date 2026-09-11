@@ -19,9 +19,9 @@ class PickupResource extends JsonResource
                 'member_code' => $this->member->member_code,
                 'name' => $this->member->name,
                 'address' => $this->member->address,
-                // Alamat sesuai kategori (rumah/pasar); fallback ke alamat umum.
-                'address_rumah' => $this->member->address_rumah ?? $this->member->address,
-                'address_pasar' => $this->member->address_pasar ?? $this->member->address,
+                // Alamat sesuai kategori (rumah/pasar); ?: agar string kosong juga fallback.
+                'address_rumah' => $this->member->address_rumah ?: $this->member->address,
+                'address_pasar' => $this->member->address_pasar ?: $this->member->address,
                 'phone' => $this->member->phone,
             ]),
             'officer' => $this->whenLoaded('officer', fn () => $this->officer?->only(['id', 'name'])),

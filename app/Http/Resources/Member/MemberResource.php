@@ -18,8 +18,9 @@ class MemberResource extends JsonResource
             'name' => $this->name,
             'phone' => $this->phone,
             'address' => $this->address,
-            'address_rumah' => $this->address_rumah ?? $this->address,
-            'address_pasar' => $this->address_pasar ?? $this->address,
+            // ?: bukan ?? — string kosong ('') juga fallback ke alamat umum.
+            'address_rumah' => $this->address_rumah ?: $this->address,
+            'address_pasar' => $this->address_pasar ?: $this->address,
             'status' => $this->status,
             'join_date' => $this->join_date?->toDateString(),
             'categories' => $this->categories ?? [],
