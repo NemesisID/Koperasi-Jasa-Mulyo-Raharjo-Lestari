@@ -1,0 +1,10 @@
+# Laravel di subfolder /be — letakkan file ini di root folder /be
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /be
+
+  # Kirim semua non-file/folder ke public/index.php
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^ public/index.php [L]
+</IfModule>
