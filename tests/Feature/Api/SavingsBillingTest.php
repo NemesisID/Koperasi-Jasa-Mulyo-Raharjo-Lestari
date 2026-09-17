@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\Test;
 class SavingsBillingTest extends ApiTestCase
 {
     #[Test]
-    public function monthly_billing_is_45k_split_wajib_and_tipping(): void
+    public function monthly_billing_is_50k_split_wajib_and_tipping(): void
     {
         $this->seedCore();
         [, $member] = $this->makeUserWithMember('anggota');
@@ -23,7 +23,7 @@ class SavingsBillingTest extends ApiTestCase
         $tipping = SetoranKoperasi::where('label', 'TIPPING')->first();
 
         $this->assertEquals(5000, $wajib->jumlah);
-        $this->assertEquals(40000, $tipping->jumlah);
+        $this->assertEquals(45000, $tipping->jumlah);
         $this->assertEquals('PENDING', $wajib->status);
         $this->assertEquals('PENDING', $tipping->status);
     }
@@ -61,15 +61,15 @@ class SavingsBillingTest extends ApiTestCase
         $this->actingAs($bendahara)->postJson('/api/v1/savings/pay', [
             'member_id' => $member->id,
             'label' => 'TIPPING',
-            'jumlah' => 40000,
+            'jumlah' => 45000,
             'metode' => 'transfer',
         ])->assertStatus(201);
 
         $status = $service->getBillingStatus($member->id);
         $this->assertTrue($status['fully_paid']);
-        $this->assertEquals(45000, $status['total_monthly']);
+        $this->assertEquals(50000, $status['total_monthly']);
 
-        // Dua jurnal income tercatat (5rb + 40rb)
+        // Dua jurnal income tercatat (5rb + 45rb)
         $this->assertSame(2, \App\Models\Transaction::where('type', 'income')->count());
     }
 
@@ -118,7 +118,7 @@ class SavingsBillingTest extends ApiTestCase
             ->getJson('/api/v1/savings/billing-status')
             ->assertStatus(200)
             ->assertJsonPath('data.member.id', $member->id)
-            ->assertJsonPath('data.total_monthly', 45000)
+            ->assertJsonPath('data.total_monthly', 50000)
             ->assertJsonPath('data.fully_paid', false);
     }
 }

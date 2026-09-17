@@ -43,6 +43,12 @@ class TrashWeighingTest extends ApiTestCase
         $this->assertNotNull($fee, 'fee 20% journal missing');
         $this->assertEquals('berhasil', $fee->status);
 
+        // Jurnal kas: beli sampah (expense) harus punya category_id — regression SQL 1048
+        $purchase = Transaction::where('type', 'expense')->where('description', 'Beli sampah anggota #'.$member->id)->first();
+        $this->assertNotNull($purchase, 'purchase journal missing');
+        $this->assertNotNull($purchase->category_id, 'purchase journal category_id is null');
+        $this->assertEquals($petugas->id, $purchase->handled_by, 'petugas harus user yang login');
+
         // Saldo dompet anggota naik 200.000
         $this->assertEquals(200000.0, app(WalletService::class)->getMemberWalletSummary($member->id)['current_balance']);
     }
@@ -68,7 +74,7 @@ class TrashWeighingTest extends ApiTestCase
     }
 
     #[Test]
-    public function double_weighing_is_rejected(): void
+    public function reweigh_replaces_journal_and_items(): void
     {
         $this->seedCore();
         [$petugas] = $this->makeUserWithMember('petugas');
@@ -81,9 +87,15 @@ class TrashWeighingTest extends ApiTestCase
             'items' => [['category_id' => 1, 'weight_kg' => 1]],
         ])->assertStatus(200);
 
+        // Timbang ulang = edit timbangan: jurnal lama dibatalkan, diganti baru.
         $this->actingAs($petugas)->postJson("/api/v1/pickups/{$ticket->id}/weigh-items", [
-            'items' => [['category_id' => 1, 'weight_kg' => 1]],
-        ])->assertStatus(400);
+            'items' => [['category_id' => 1, 'weight_kg' => 2]],
+        ])->assertStatus(200);
+
+        $purchase = Transaction::where('description', 'Beli sampah anggota #'.$member->id)->get();
+        $this->assertCount(2, $purchase, 'reweigh harus meninggalkan jurnal lama (gagal) + baru (berhasil)');
+        $this->assertEqualsCanonicalizing(['berhasil', 'gagal'], $purchase->pluck('status')->all());
+        $purchase->pluck('category_id')->each(fn ($id) => $this->assertNotNull($id, 'jurnal beli sampah tidak boleh category_id null'));
     }
 
     #[Test]

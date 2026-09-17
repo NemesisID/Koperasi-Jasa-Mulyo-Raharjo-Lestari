@@ -48,7 +48,26 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
     public function update(int $id, array $data): TrashCategory
     {
         $category = $this->findById($id);
-        $category->update($data);
+
+        // Edit form (PUT) juga bisa mengubah harga — catat ke audit log seperti
+        // PATCH /price supaya riwayat harga lengkap (issue #2).
+        $priceChanged = collect(['price_unsorted', 'price_sell'])
+            ->contains(fn (string $field) => isset($data[$field]) && (float) $data[$field] !== (float) $category->{$field});
+
+        if ($priceChanged) {
+            PriceChangeLog::create([
+                'trash_category_id' => $category->id,
+                'old_price_sorted' => $category->price_sorted,
+                'new_price_sorted' => $data['price_sorted'] ?? $category->price_sorted,
+                'old_price_unsorted' => $category->price_unsorted,
+                'new_price_unsorted' => $data['price_unsorted'] ?? $category->price_unsorted,
+                'old_price_sell' => $category->price_sell,
+                'new_price_sell' => $data['price_sell'] ?? $category->price_sell,
+                'changed_by' => $data['changed_by'] ?? null,
+            ]);
+        }
+
+        $category->update(collect($data)->except('changed_by')->all());
 
         return $category->fresh();
     }

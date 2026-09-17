@@ -17,6 +17,14 @@ use App\Http\Controllers\Api\v1\WalletController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
+    // Fallback 401 JSON untuk nama route 'login' — API-only app tidak punya halaman
+    // login web; tanpa ini request tanpa token dari kode lama/skeleton lama
+    // meledak jadi "Route [login] not defined" (500) alih-alih 401.
+    Route::get('/login', fn () => response()->json([
+        'message' => 'Unauthenticated or invalid token.',
+        'errors' => null,
+    ], 401))->name('login');
+
     Route::prefix('auth')->group(function () {
         // Public endpoints
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -84,6 +92,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}', [PickupController::class, 'show'])->middleware('role:pengurus,petugas,anggota');
         Route::get('/{id}/receipt', [PickupController::class, 'receipt'])->middleware('role:pengurus,petugas,anggota');
         Route::patch('/{id}/cancel', [PickupController::class, 'cancel'])->middleware('role:pengurus');
+        // Plotting petugas: tugaskan petugas ke tiket penjemputan (pengurus)
+        Route::patch('/{id}/assign', [PickupController::class, 'assign'])->middleware('role:pengurus');
     });
 
     // Pengaduan & komplain nota timbang
@@ -130,6 +140,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('shu')->middleware('auth:sanctum')->group(function () {
         Route::get('/periods', [ShuController::class, 'periods'])->middleware('role:pengurus');
         Route::post('/simulate', [ShuController::class, 'simulate'])->middleware('role:pengurus');
+        Route::patch('/drafts/{id}', [ShuController::class, 'updateDraft'])->middleware('role:pengurus');
         Route::post('/publish', [ShuController::class, 'publish'])->middleware('role:pengurus');
         Route::get('/my-history', [ShuController::class, 'myHistory'])->middleware('role:anggota');
     });

@@ -77,7 +77,7 @@ class TrashCategoryController extends Controller
      */
     public function update(UpdateTrashCategoryRequest $request, int $id): JsonResponse
     {
-        $category = $this->trashCategoryService->updateCategory($id, $request->validated());
+        $category = $this->trashCategoryService->updateCategory($id, $request->validated(), $request->user());
 
         return response()->json([
             'success' => true,

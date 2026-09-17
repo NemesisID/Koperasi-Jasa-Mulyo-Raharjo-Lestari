@@ -30,6 +30,8 @@ class UpdateUserRequest extends FormRequest
             'member_types.*' => [Rule::in(['rumah', 'pasar'])],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string', 'max:500'],
+            'address_rumah' => ['nullable', 'string', 'max:500'],
+            'address_pasar' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

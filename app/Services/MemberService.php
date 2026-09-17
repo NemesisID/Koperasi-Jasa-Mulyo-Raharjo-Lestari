@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Member;
+use App\Models\User;
 use App\Repositories\Contracts\MemberRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
@@ -23,7 +24,7 @@ class MemberService
         return $this->memberRepository->findById($id);
     }
 
-    public function createMember(array $data): Member
+    public function createMember(array $data, ?User $handler = null): Member
     {
         $data['member_code'] = $this->memberRepository->generateMemberCode();
         $data['join_date'] ??= now()->toDateString();
@@ -31,8 +32,8 @@ class MemberService
 
         $member = $this->memberRepository->create($data);
 
-        // Simpanan pokok Rp50.000 otomatis untuk anggota baru.
-        $this->savingsService->recordInitialPokok($member);
+        // Simpanan pokok Rp50.000 per kategori member otomatis untuk anggota baru.
+        $this->savingsService->recordInitialPokok($member, $handler);
 
         return $member;
     }

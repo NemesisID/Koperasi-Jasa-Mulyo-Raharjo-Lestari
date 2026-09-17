@@ -25,7 +25,7 @@ class PickupController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $filters = $request->only(['status', 'date', 'member_id', 'search', 'per_page']);
+        $filters = $request->only(['status', 'date', 'member_id', 'officer_id', 'search', 'per_page']);
 
         if ($request->user()->role === 'anggota') {
             abort_if($request->user()->member === null, 403, 'Hanya anggota yang memiliki riwayat penjemputan.');
@@ -159,6 +159,32 @@ class PickupController extends Controller
             'success' => true,
             'message' => 'Transaksi timbang dibatalkan. Saldo dan jurnal kas telah di-rollback.',
             'data' => new PickupResource($pickup),
+        ]);
+    }
+
+    /**
+     * PATCH /api/v1/pickups/{id}/assign — plotting petugas ke tiket penjemputan.
+     */
+    public function assign(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'officer_id' => ['nullable', 'integer', 'exists:users,id'],
+        ]);
+
+        $pickup = $this->weighingService->getPickup($id);
+        $officerId = $request->input('officer_id');
+
+        if ($officerId !== null) {
+            $officer = \App\Models\User::find($officerId);
+            abort_unless(in_array($officer->role, ['petugas', 'pengurus']), 422, 'Petugas penjemputan harus akun petugas atau pengurus.');
+        }
+
+        $pickup->update(['officer_id' => $officerId]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Penugasan petugas berhasil diperbarui.',
+            'data' => new PickupResource($pickup->load('officer:id,name')),
         ]);
     }
 
