@@ -20,7 +20,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         // Public endpoints
         Route::post('login', [AuthController::class, 'login'])->middleware('throttle:10,1');
-        Route::post('register-member', [AuthController::class, 'registerMember'])->middleware('throttle:5,1');
+        // Registrasi mandiri ditutup: akun hanya dibuat pengurus lewat POST /users.
 
         // Authenticated endpoints
         Route::middleware('auth:sanctum')->group(function () {
@@ -47,12 +47,16 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::prefix('members')->middleware('auth:sanctum')->group(function () {
+        // ?trashed=1 → daftar anggota yang sudah diarsipkan (soft delete)
         Route::get('/', [MemberController::class, 'index'])->middleware('role:pengurus,petugas');
         Route::post('/', [MemberController::class, 'store'])->middleware('role:pengurus');
         // Own-check untuk role anggota ada di controller (show)
         Route::get('/{id}', [MemberController::class, 'show'])->middleware('role:pengurus,petugas,anggota');
         Route::put('/{id}', [MemberController::class, 'update'])->middleware('role:pengurus');
         Route::patch('/{id}/status', [MemberController::class, 'updateStatus'])->middleware('role:pengurus');
+        // Arsip, bukan hapus permanen — riwayat transaksi tetap merujuk member_id.
+        Route::delete('/{id}', [MemberController::class, 'destroy'])->middleware('role:pengurus');
+        Route::patch('/{id}/restore', [MemberController::class, 'restore'])->middleware('role:pengurus');
     });
 
     // Katalog sampah & manajemen harga
@@ -72,6 +76,8 @@ Route::prefix('v1')->group(function () {
     Route::prefix('pickups')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [PickupController::class, 'index'])->middleware('role:pengurus,petugas,anggota');
         Route::post('/', [PickupController::class, 'store'])->middleware('role:pengurus,petugas,anggota');
+        // Harus di atas GET /{id} — kalau tidak, "stats" tertangkap sebagai id.
+        Route::get('/stats', [PickupController::class, 'stats'])->middleware('role:pengurus,petugas');
         Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:pengurus,petugas');
         Route::post('/{id}/photo', [PickupController::class, 'uploadPhoto'])->middleware('role:pengurus,petugas');
         // Own-check untuk role anggota ada di controller (show/receipt)

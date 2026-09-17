@@ -42,6 +42,19 @@ class MemberService
         return $this->memberRepository->update($id, $data);
     }
 
+    /**
+     * Arsipkan anggota (soft delete). Riwayat pickup/SHU/penarikan tetap utuh.
+     */
+    public function deleteMember(int $id): void
+    {
+        $this->memberRepository->delete($id);
+    }
+
+    public function restoreMember(int $id): Member
+    {
+        return $this->memberRepository->restore($id);
+    }
+
     public function updateStatus(int $id, string $status): Member
     {
         // ponytail: kolom `notes` tidak ada di tabel members — alasan status tidak dipersist, tambahkan kolom jika butuh audit.

@@ -20,6 +20,7 @@ class SetoranKoperasi extends Model
         'jenis',
         'jumlah',
         'status',
+        'sumber',
         'label',
         'catatan',
     ];

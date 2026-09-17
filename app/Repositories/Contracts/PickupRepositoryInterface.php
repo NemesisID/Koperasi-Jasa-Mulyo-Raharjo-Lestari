@@ -15,6 +15,14 @@ interface PickupRepositoryInterface
     public function paginate(array $filters): LengthAwarePaginator;
 
     /**
+     * Hitungan pickup per status dari SELURUH tabel (bukan sepotong halaman),
+     * supaya dashboard pengurus & petugas menampilkan angka yang sama.
+     *
+     * @return array{menunggu: int, selesai: int, batal: int, total: int, total_net_selesai: float}
+     */
+    public function statusCounts(): array;
+
+    /**
      * Satu pickup beserta relasi member, petugas, dan rincian item.
      */
     public function findByIdWithDetails(int $id): Pickup;

@@ -30,6 +30,17 @@ interface MemberRepositoryInterface
     public function update(int $id, array $data): Member;
 
     /**
+     * Arsipkan anggota (soft delete) — baris tetap ada agar riwayat pickup,
+     * SHU, dan penarikan yang merujuk `member_id` tidak ikut hilang.
+     */
+    public function delete(int $id): void;
+
+    /**
+     * Pulihkan anggota yang diarsipkan.
+     */
+    public function restore(int $id): Member;
+
+    /**
      * Generate kode anggota unik dengan format MBR-YYYYMM-XXXX.
      */
     public function generateMemberCode(): string;

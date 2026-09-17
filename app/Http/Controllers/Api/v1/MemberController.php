@@ -20,11 +20,12 @@ class MemberController extends Controller
 
     /**
      * GET /api/v1/members
+     * Query ?trashed=1 untuk daftar anggota yang sudah diarsipkan.
      */
     public function index(Request $request): JsonResponse
     {
         $paginator = $this->memberService->getMembersPaginated(
-            $request->only(['status', 'category_id', 'search', 'per_page']),
+            $request->only(['status', 'category_id', 'officer_id', 'search', 'per_page', 'trashed']),
         );
 
         return response()->json([
@@ -97,6 +98,34 @@ class MemberController extends Controller
             'success' => true,
             'message' => 'Status anggota berhasil diperbarui.',
             'data' => new MemberResource($member),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/members/{id} — arsipkan anggota, bukan hapus permanen.
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $this->memberService->deleteMember($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Anggota berhasil dihapus. Data riwayatnya tetap tersimpan dan dapat dipulihkan.',
+            'data' => null,
+        ]);
+    }
+
+    /**
+     * PATCH /api/v1/members/{id}/restore
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $member = $this->memberService->restoreMember($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Anggota berhasil dipulihkan.',
+            'data' => new MemberResource($member->load('category', 'officer:id,name')),
         ]);
     }
 }

@@ -21,6 +21,7 @@ class SavingsResource extends JsonResource
             'label' => $this->label,
             'jumlah' => $this->jumlah,
             'status' => $this->status,
+            'sumber' => $this->sumber,
             'catatan' => $this->catatan,
             'created_at' => $this->created_at?->toIso8601String(),
         ];

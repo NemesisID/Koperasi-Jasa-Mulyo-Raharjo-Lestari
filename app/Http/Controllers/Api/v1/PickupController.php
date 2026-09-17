@@ -47,6 +47,20 @@ class PickupController extends Controller
     }
 
     /**
+     * GET /api/v1/pickups/stats — rekap status penjemputan.
+     * Dipakai bersama oleh dashboard pengurus dan petugas supaya keduanya
+     * menampilkan angka yang sama (bukan hitung sendiri dari sepotong halaman).
+     */
+    public function stats(): JsonResponse
+    {
+        return response()->json([
+            'success' => true,
+            'message' => 'Rekap status penjemputan berhasil dimuat.',
+            'data' => $this->weighingService->getStatusCounts(),
+        ]);
+    }
+
+    /**
      * POST /api/v1/pickups
      */
     public function store(CreatePickupTicketRequest $request): JsonResponse

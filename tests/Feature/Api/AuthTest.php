@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use PHPUnit\Framework\Attributes\Test;
 use Illuminate\Support\Facades\Hash;
+use App\Models\MemberCategory;
 
 class AuthTest extends ApiTestCase
 {
@@ -73,5 +74,67 @@ class AuthTest extends ApiTestCase
         // Guard user di-cache per app instance dalam test, jadi reset guard dulu.
         \Illuminate\Support\Facades\Auth::forgetGuards();
         $this->withToken($token)->postJson('/api/v1/auth/logout')->assertStatus(401);
+    }
+
+    #[Test]
+    public function public_self_registration_is_disabled(): void
+    {
+        $this->seedCore();
+
+        $this->postJson('/api/v1/auth/register-member', [
+            'name' => 'Penyusup',
+            'username' => 'penyusup',
+            'email' => 'penyusup@example.com',
+            'password' => 'password123',
+            'member_types' => ['rumah'],
+            'phone' => '08123456789',
+            'address' => 'Jl. Test No. 1',
+        ])->assertStatus(404);
+
+        $this->assertDatabaseMissing('users', ['username' => 'penyusup']);
+    }
+
+    #[Test]
+    public function pengurus_can_still_create_member_account(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'rumah']);
+        [$pengurus] = $this->makeUserWithMember('pengurus');
+
+        $this->actingAs($pengurus)
+            ->postJson('/api/v1/users', [
+                'name' => 'Anggota Baru',
+                'username' => 'anggota_baru',
+                'email' => 'anggota_baru@example.com',
+                'password' => 'password123',
+                'role' => 'anggota',
+                'member_types' => ['rumah'],
+            ])
+            ->assertStatus(201)
+            ->assertJsonPath('success', true);
+
+        $this->assertDatabaseHas('users', ['username' => 'anggota_baru', 'role' => 'anggota']);
+        $this->assertDatabaseHas('members', ['name' => 'Anggota Baru', 'status' => 'aktif']);
+    }
+
+    #[Test]
+    public function non_pengurus_cannot_create_accounts(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'rumah']);
+        [$petugas] = $this->makeUserWithMember('petugas');
+
+        $this->actingAs($petugas)
+            ->postJson('/api/v1/users', [
+                'name' => 'Anggota Gelap',
+                'username' => 'anggota_gelap',
+                'email' => 'anggota_gelap@example.com',
+                'password' => 'password123',
+                'role' => 'anggota',
+                'member_types' => ['rumah'],
+            ])
+            ->assertStatus(403);
+
+        $this->assertDatabaseMissing('users', ['username' => 'anggota_gelap']);
     }
 }

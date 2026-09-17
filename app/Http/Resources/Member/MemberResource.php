@@ -22,6 +22,12 @@ class MemberResource extends JsonResource
             'join_date' => $this->join_date?->toDateString(),
             'categories' => $this->categories ?? [],
             'category' => new MemberCategoryResource($this->whenLoaded('category')),
+            // Ploting petugas: satu baris per anggota/alamat, jadi anggota dengan
+            // 2 tempat muncul 2 kali dengan officer masing-masing.
+            'officer' => $this->officer ? [
+                'id' => $this->officer->id,
+                'name' => $this->officer->name,
+            ] : null,
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

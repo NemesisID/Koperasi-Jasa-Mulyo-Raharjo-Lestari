@@ -22,6 +22,11 @@ class SavingsService
     public const WAJIB_TOTAL_MONTHLY = 50000;
 
     /**
+     * Berapa bulan berturut-turut gagal hold sebelum anggota dinonaktifkan (#15).
+     */
+    public const HOLD_MAX_FAILED_MONTHS = 3;
+
+    /**
      * Map label setoran -> kategori jurnal kas.
      */
     private const LABEL_CATEGORY = [
@@ -34,6 +39,7 @@ class SavingsService
     public function __construct(
         private readonly SetoranKoperasiRepositoryInterface $setoranRepository,
         private readonly TransactionRepositoryInterface $transactionRepository,
+        private readonly WalletService $walletService,
     ) {}
 
     /**
@@ -43,13 +49,16 @@ class SavingsService
     {
         $member = Member::findOrFail($data['member_id']);
 
-        if ($member->status !== 'aktif') {
+        $isMonthlyPackage = $this->isMonthlyPackage($data['label'], $data['jumlah']);
+
+        // Paket rutin Rp50.000 adalah jalur "bisa manual bayar": anggota nonaktif
+        // tetap boleh melunasi tunggakannya supaya bisa aktif kembali. Setoran
+        // lain tetap diblokir selama anggota nonaktif.
+        if (! $isMonthlyPackage && $member->status !== 'aktif') {
             throw new BusinessLogicException('Anggota tidak aktif — pembayaran simpanan tidak dapat dicatat.');
         }
 
-        // Pembayaran WAJIB bulanan Rp50.000: dipecah otomatis menjadi
-        // operasional Rp45.000 (label TIPPING) + simpanan Rp5.000 (label WAJIB).
-        if ($data['label'] === 'WAJIB' && (float) $data['jumlah'] === (float) self::WAJIB_TOTAL_MONTHLY) {
+        if ($isMonthlyPackage) {
             return $this->payMonthlyWajib($member, $handler, $data['metode'], $data['catatan'] ?? null);
         }
 
@@ -79,13 +88,21 @@ class SavingsService
     }
 
     /**
-     * Konfirmasi pembayaran setoran wajib Rp50.000 oleh pengurus:
-     * tandai tagihan WAJIB + TIPPING bulan berjalan sebagai SELESAI (atau buat baru),
-     * lalu jurnal kas 45.000 operasional + 5.000 simpanan.
+     * Konfirmasi pembayaran setoran wajib Rp50.000: tandai tagihan WAJIB + TIPPING
+     * bulan berjalan sebagai SELESAI (atau buat baru), lalu jurnal kas
+     * 45.000 operasional + 5.000 simpanan.
+     *
+     * @param  string  $sumber  'tunai' (dibayar di koperasi) atau 'saldo' (dipotong dari dompet, #15).
      */
-    private function payMonthlyWajib(Member $member, User $handler, string $metode, ?string $catatan): SetoranKoperasi
+    private function payMonthlyWajib(Member $member, User $handler, string $metode, ?string $catatan, string $sumber = 'tunai'): SetoranKoperasi
     {
-        return DB::transaction(function () use ($member, $handler, $metode, $catatan): SetoranKoperasi {
+        return DB::transaction(function () use ($member, $handler, $metode, $catatan, $sumber): SetoranKoperasi {
+            // Bulan ini sudah lunas — jangan tagih/potong dua kali. Hold bulanan
+            // dan tombol konfirmasi manual sama-sama lewat sini, jadi guard-nya cukup satu.
+            if ($this->hasSettledInMonth($member, now())) {
+                throw new BusinessLogicException('Tagihan rutin bulan ini sudah lunas — tidak dapat ditagih dua kali.');
+            }
+
             $setoran = null;
 
             foreach (['TIPPING' => self::OPERASIONAL_MONTHLY, 'WAJIB' => self::WAJIB_MONTHLY] as $label => $amount) {
@@ -100,13 +117,19 @@ class SavingsService
                     ->first();
 
                 if ($setoran) {
-                    $setoran->update(['status' => 'SELESAI', 'jumlah' => $amount, 'catatan' => $catatan ?? $setoran->catatan]);
+                    $setoran->update([
+                        'status' => 'SELESAI',
+                        'jumlah' => $amount,
+                        'sumber' => $sumber,
+                        'catatan' => $catatan ?? $setoran->catatan,
+                    ]);
                 } else {
                     $setoran = $this->setoranRepository->create([
                         'user_id' => $member->user_id,
                         'jenis' => 'PEMASUKAN',
                         'jumlah' => $amount,
                         'status' => 'SELESAI',
+                        'sumber' => $sumber,
                         'label' => $label,
                         'catatan' => $catatan ?? "Setoran wajib bulan ".now()->format('Y-m'),
                     ]);
@@ -124,8 +147,117 @@ class SavingsService
                 ]);
             }
 
+            // Pelunasan paket bulanan memutus tunggakan, jadi anggota yang tadinya
+            // dinonaktifkan karena gagal hold otomatis aktif kembali.
+            // `suspend` tidak disentuh — itu keputusan pengurus, bukan efek pembayaran.
+            if ($member->status === 'nonaktif') {
+                $member->update(['status' => 'aktif']);
+            }
+
             return $setoran;
         });
+    }
+
+    /**
+     * Hold bulanan (#15): potong tagihan rutin Rp50.000 dari saldo sampah anggota.
+     *
+     * Saldo kurang → tidak ada potongan. Setelah HOLD_MAX_FAILED_MONTHS bulan
+     * berturut-turut gagal, anggota dinonaktifkan — dan bisa aktif lagi dengan
+     * bayar manual (POST /savings/pay paket Rp50.000).
+     *
+     * @return array{member_id: int, member_code: string, held: bool, months_failed: int, status: string, reason: ?string}
+     */
+    public function holdMonthlyWajib(Member $member, User $handler): array
+    {
+        $result = [
+            'member_id' => $member->id,
+            'member_code' => $member->member_code,
+            'held' => false,
+            'months_failed' => 0,
+            'status' => $member->status,
+            'reason' => null,
+        ];
+
+        if ($this->hasSettledInMonth($member, now())) {
+            $result['reason'] = 'sudah_lunas';
+
+            return $result;
+        }
+
+        // Yang dinilai "saldo jual sampah" — bukan total saldo, karena dividen SHU
+        // belum tentu bisa dipakai menutup tagihan bulanan.
+        $balance = $this->walletService->getMemberWalletSummary($member->id)['balance_from_trash'];
+
+        if ($balance >= self::WAJIB_TOTAL_MONTHLY) {
+            // payment_method jurnal tetap 'tunai' (enum kas hanya tunai/transfer/sampah);
+            // asal dananya yang ditandai lewat kolom `sumber` di baris setoran.
+            $this->payMonthlyWajib($member, $handler, 'tunai', 'Potongan otomatis dari saldo (hold bulanan)', 'saldo');
+
+            $result['held'] = true;
+            $result['status'] = $member->fresh()->status;
+
+            return $result;
+        }
+
+        $failed = $this->monthsWithoutPayment($member);
+        $result['months_failed'] = $failed;
+
+        if ($failed >= self::HOLD_MAX_FAILED_MONTHS && $member->status === 'aktif') {
+            $member->update(['status' => 'nonaktif']);
+            $result['reason'] = 'saldo_kurang_dinonaktifkan';
+            $result['status'] = 'nonaktif';
+
+            return $result;
+        }
+
+        $result['reason'] = 'saldo_kurang';
+
+        return $result;
+    }
+
+    /**
+     * Berapa bulan berturut-turut (mundur dari bulan ini) tanpa pelunasan paket rutin.
+     *
+     * Dihitung ulang, bukan disimpan di kolom — jadi idempoten: command boleh
+     * dijalankan berkali-kali tanpa menambah hitungan, dan pelunasan otomatis
+     * memutus rentetannya tanpa kode reset terpisah.
+     */
+    public function monthsWithoutPayment(Member $member, int $limit = self::HOLD_MAX_FAILED_MONTHS): int
+    {
+        $months = 0;
+        $cursor = now()->startOfMonth();
+        $joinMonth = $member->join_date?->copy()->startOfMonth() ?? $cursor->copy();
+
+        while ($months < $limit && $cursor->greaterThanOrEqualTo($joinMonth)) {
+            if ($this->hasSettledInMonth($member, $cursor)) {
+                break;
+            }
+
+            $months++;
+            $cursor->subMonth();
+        }
+
+        return $months;
+    }
+
+    private function isMonthlyPackage(string $label, mixed $jumlah): bool
+    {
+        return $label === 'WAJIB' && (float) $jumlah === (float) self::WAJIB_TOTAL_MONTHLY;
+    }
+
+    /**
+     * Penanda "bulan ini sudah dibayar" = ada baris WAJIB SELESAI di bulan tsb.
+     * Paket rutin selalu membuat baris WAJIB, jadi label ini cukup jadi penanda.
+     */
+    private function hasSettledInMonth(Member $member, \Carbon\CarbonInterface $month): bool
+    {
+        return SetoranKoperasi::where('user_id', $member->user_id)
+            ->where('jenis', 'PEMASUKAN')
+            ->where('label', 'WAJIB')
+            ->where('status', 'SELESAI')
+            ->whereYear('created_at', $month->year)
+            ->whereMonth('created_at', $month->month)
+            ->exists();
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\BusinessLogicException;
 use App\Models\Complaint;
 use App\Models\Pickup;
+use App\Models\SetoranKoperasi;
 use App\Models\ShuMember;
 use App\Models\User;
 use App\Models\WithdrawRequest;
@@ -42,19 +43,29 @@ class WalletService
         $pendingWithdraw = (float) WithdrawRequest::where('member_id', $memberId)
             ->where('status', 'pending')->sum('amount');
 
+        // Tagihan rutin yang dipotong otomatis dari saldo (hold bulanan #15).
+        // Saldo dihitung turunan, jadi pemotongan ini harus ikut dikurangkan di sini —
+        // kalau tidak, anggota bisa menarik uang yang sudah dipakai bayar wajib.
+        $savingsHold = (float) SetoranKoperasi::where('user_id', $member->user_id)
+            ->where('jenis', 'PEMASUKAN')
+            ->where('status', 'SELESAI')
+            ->where('sumber', 'saldo')
+            ->sum('jumlah');
+
         return [
             'member' => [
                 'id' => $member->id,
                 'member_code' => $member->member_code,
                 'name' => $member->name,
             ],
-            'current_balance' => round($fromTrash + $fromComplaint + $fromShu - $withdrawn, 2),
+            'current_balance' => round($fromTrash + $fromComplaint + $fromShu - $withdrawn - $savingsHold, 2),
             'total_earned' => round($fromTrash + $fromComplaint + $fromShu, 2),
             'total_withdrawn' => $withdrawn,
             'pending_withdrawal' => $pendingWithdraw,
-            'available_balance' => round($fromTrash + $fromComplaint + $fromShu - $withdrawn - $pendingWithdraw, 2),
+            'savings_hold' => round($savingsHold, 2),
+            'available_balance' => round($fromTrash + $fromComplaint + $fromShu - $withdrawn - $pendingWithdraw - $savingsHold, 2),
             // Breakdown sumber saldo: sampah vs SHU (untuk dashboard anggota).
-            'balance_from_trash' => round($fromTrash + $fromComplaint - $withdrawn, 2),
+            'balance_from_trash' => round($fromTrash + $fromComplaint - $withdrawn - $savingsHold, 2),
             'balance_from_shu' => $fromShu,
         ];
     }
@@ -109,6 +120,19 @@ class WalletService
                 'description' => $w->status === 'pending' ? 'Pengajuan penarikan (menunggu)' : "Penarikan {$w->method}",
                 'amount' => (float) $w->amount,
                 'date' => $w->created_at?->toIso8601String(),
+            ]));
+
+        // Potongan tagihan rutin dari saldo (hold bulanan #15).
+        SetoranKoperasi::where('user_id', $member->user_id)
+            ->where('jenis', 'PEMASUKAN')->where('status', 'SELESAI')->where('sumber', 'saldo')
+            ->orderByDesc('created_at')->get()
+            ->each(fn (SetoranKoperasi $s) => $mutations->push([
+                'type' => 'out',
+                'source' => 'potongan_saldo',
+                'reference' => "Setoran {$s->label}",
+                'description' => "Potongan otomatis dari saldo — {$s->label}",
+                'amount' => (float) $s->jumlah,
+                'date' => $s->created_at?->toIso8601String(),
             ]));
 
         return $mutations->sortByDesc('date')->values();

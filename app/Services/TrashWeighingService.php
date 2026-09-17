@@ -32,6 +32,15 @@ class TrashWeighingService
         return $this->pickupRepository->paginate($filters);
     }
 
+    /**
+     * Rekap status penjemputan dari seluruh data — sumber angka tunggal
+     * untuk dashboard pengurus maupun petugas.
+     */
+    public function getStatusCounts(): array
+    {
+        return $this->pickupRepository->statusCounts();
+    }
+
     public function getPickup(int $id): Pickup
     {
         return $this->pickupRepository->findByIdWithDetails($id);

@@ -27,6 +27,24 @@ class PickupRepository implements PickupRepositoryInterface
             ->paginate($filters['per_page'] ?? 15);
     }
 
+    public function statusCounts(): array
+    {
+        // Satu query agregat untuk seluruh tabel — bukan hasil map atas sepotong halaman,
+        // yang bikin dashboard pengurus dan petugas menampilkan angka berbeda.
+        $counts = Pickup::query()
+            ->selectRaw('status, COUNT(*) as jumlah')
+            ->groupBy('status')
+            ->pluck('jumlah', 'status');
+
+        return [
+            'menunggu' => (int) $counts->get('menunggu', 0),
+            'selesai' => (int) $counts->get('selesai', 0),
+            'batal' => (int) $counts->get('batal', 0),
+            'total' => (int) $counts->sum(),
+            'total_net_selesai' => round((float) Pickup::where('status', 'selesai')->sum('total_net'), 2),
+        ];
+    }
+
     public function findByIdWithDetails(int $id): Pickup
     {
         return Pickup::with(

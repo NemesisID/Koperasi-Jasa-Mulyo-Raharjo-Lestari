@@ -6,13 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Member extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'user_id',
+        'officer_id',
         'member_category_id',
         'categories',
         'member_code',
@@ -39,6 +41,14 @@ class Member extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(MemberCategory::class, 'member_category_id');
+    }
+
+    /**
+     * Petugas yang di-plot menangani anggota ini (per alamat).
+     */
+    public function officer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'officer_id');
     }
 
     public function pickups(): HasMany
