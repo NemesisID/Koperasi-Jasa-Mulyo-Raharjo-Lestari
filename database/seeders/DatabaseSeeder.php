@@ -29,7 +29,7 @@ class DatabaseSeeder extends Seeder
             ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
             // Kategori jualan sampah (marketplace) + pemasukan dari sampah untuk labeling cashflow.
             ['name' => 'Penjualan Sampah', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
-            ['name' => 'Pemasukan Sampah Lainnya', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
+            ['name' => 'Penjualan Produk Lain', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
         ] as $category) {
             FinanceCategory::firstOrCreate(['name' => $category['name']], $category);
         }

@@ -38,6 +38,14 @@ class TrashCategory extends Model
         return round((float) $this->price_sell * 0.80, 2);
     }
 
+    /**
+     * Harga anggota untuk sampah belum terpilah (harga kotor dipotong 20%).
+     */
+    public function getPriceMemberUnsortedAttribute(): float
+    {
+        return round((float) $this->price_unsorted * 0.80, 2);
+    }
+
     public function pickupItems(): HasMany
     {
         return $this->hasMany(PickupItem::class, 'category_id');

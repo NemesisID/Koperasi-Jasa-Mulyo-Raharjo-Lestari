@@ -24,6 +24,8 @@ class CreateTransactionRequest extends FormRequest
             'amount' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:500'],
             'payment_method' => ['required', Rule::in(['tunai', 'transfer'])],
+            // Bukti foto opsional — sama seperti foto timbang (jpg/png, maks 5MB).
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png', 'max:5120'],
         ];
     }
 }

@@ -8,7 +8,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 class ReceiptResource extends JsonResource
 {
     /**
-     * Nota digital timbang: rincian berat, potongan 20%, saldo bersih masuk.
+     * Nota digital timbang: rincian berat, nilai, dan saldo bersih masuk.
      *
      * @return array<string, mixed>
      */
@@ -33,7 +33,9 @@ class ReceiptResource extends JsonResource
                 'total_value' => $item->total_value,
             ]),
             'total_gross' => $this->total_gross,
-            'operational_fee_percent' => 20,
+            // Potongan 20% melekat di harga anggota katalog, bukan dipotong di nota.
+            // Dua field ini tinggal 0 demi kompatibilitas tampilan lama.
+            'operational_fee_percent' => 0,
             'operational_fee' => $this->total_fee,
             'net_earned' => $this->total_net,
             'verify_url' => url("/api/v1/pickups/{$this->id}/receipt"),

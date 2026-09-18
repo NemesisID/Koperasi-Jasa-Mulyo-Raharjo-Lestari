@@ -24,6 +24,8 @@ class TransactionResource extends JsonResource
             'status' => $this->status,
             'transaction_date' => $this->transaction_date?->toIso8601String(),
             'handled_by' => $this->whenLoaded('officer', fn () => $this->officer?->only(['id', 'name'])),
+            // Bukti foto transaksi kas manual — opsional, null kalau tidak diunggah.
+            'photo_url' => $this->photoUrl(),
         ];
     }
 }

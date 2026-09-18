@@ -35,8 +35,9 @@ interface PickupRepositoryInterface
     /**
      * Simpan rincian item, kunci nilai total, dan tandai selesai — dipanggil dalam DB::transaction service.
      * Officer mengisi petugas penimbang untuk tiket buatan anggota (minta jemput).
+     * $purchaseTransaction = jurnal beli sampah; id-nya disimpan di tiap item untuk rollback.
      */
-    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void;
+    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $purchaseTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void;
 
     /**
      * Batalkan pickup (status batal, catat alasan).

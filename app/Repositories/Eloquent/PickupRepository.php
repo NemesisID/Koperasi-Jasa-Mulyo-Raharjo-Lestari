@@ -61,13 +61,15 @@ class PickupRepository implements PickupRepositoryInterface
         return Pickup::create($data);
     }
 
-    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $feeTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void
+    public function addItemsAndComplete(Pickup $pickup, array $itemRows, Transaction $purchaseTransaction, float $totalGross, float $totalFee, float $totalNet, ?User $officer = null): void
     {
         foreach ($itemRows as $row) {
             PickupItem::create([
                 ...$row,
                 'pickup_id' => $pickup->id,
-                'transaction_id' => $feeTransaction->id,
+                // Item menunjuk jurnal beli sampah miliknya — dipakai rollback
+                // saat timbang ulang/batal, jadi tidak perlu lookup by deskripsi.
+                'transaction_id' => $purchaseTransaction->id,
                 'deposit_date' => now(),
             ]);
         }

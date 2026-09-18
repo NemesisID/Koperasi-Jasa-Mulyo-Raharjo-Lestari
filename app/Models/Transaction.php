@@ -22,6 +22,7 @@ class Transaction extends Model
         'status',
         'transaction_date',
         'handled_by',
+        'photo_path',
     ];
 
     protected function casts(): array
@@ -35,6 +36,11 @@ class Transaction extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(Member::class);
+    }
+
+    public function photoUrl(): ?string
+    {
+        return $this->photo_path ? asset(\Illuminate\Support\Facades\Storage::url($this->photo_path)) : null;
     }
 
     public function category(): BelongsTo

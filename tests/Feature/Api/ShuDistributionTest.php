@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\Member;
 use App\Models\TrashCategory;
+use App\Models\User;
 use App\Services\ShuCalculationEngine;
 use App\Services\SavingsService;
 use App\Services\TrashWeighingService;
@@ -111,5 +113,52 @@ class ShuDistributionTest extends ApiTestCase
         $this->actingAs($bendahara)->postJson('/api/v1/shu/publish', [
             'shu_distribution_id' => 999,
         ])->assertStatus(403);
+    }
+
+    #[Test]
+    public function distribution_is_proportional_not_equal(): void
+    {
+        $this->seedCore();
+        $pengurus = $this->makeUserWithMember('pengurus')[0];
+        [, $memberA] = $this->makeUserWithMember('anggota');
+
+        // Anggota kedua dibuat langsung: helper memakai username tetap sehingga bentrok.
+        $userB = User::create([
+            'name' => 'Test Anggota B',
+            'username' => 'test_anggota_b',
+            'email' => 'test_anggota_b@example.com',
+            'password' => bcrypt('password123'),
+            'role' => 'anggota',
+        ]);
+        $memberB = Member::create([
+            'user_id' => $userB->id,
+            'member_category_id' => $memberA->member_category_id,
+            'member_code' => 'MBR-'.now()->format('Ym').'-0002',
+            'name' => $userB->name,
+            'status' => 'aktif',
+            'join_date' => now()->toDateString(),
+        ]);
+
+        // Simpanan 3:1 → jasa modal harus ikut rasio itu, bukan dibagi rata.
+        $savings = app(SavingsService::class);
+        $savings->recordSavingsPayment(['member_id' => $memberA->id, 'label' => 'POKOK', 'jumlah' => 300000, 'metode' => 'tunai'], $pengurus);
+        $savings->recordSavingsPayment(['member_id' => $memberB->id, 'label' => 'POKOK', 'jumlah' => 100000, 'metode' => 'tunai'], $pengurus);
+
+        // Hanya anggota B yang setor sampah → dia satu-satunya penerima jasa partisipasi.
+        $petugas = $this->makeUserWithMember('petugas')[0];
+        $weighing = app(TrashWeighingService::class);
+        $ticket = $weighing->createTicket(['member_id' => $memberB->id, 'location_type' => 'gudang'], $petugas);
+        $weighing->weighAndComplete($ticket->id, [['category_id' => TrashCategory::first()->id, 'weight_kg' => 2]], $petugas);
+
+        $rows = collect(
+            app(ShuCalculationEngine::class)->simulateDistribution(now()->year, 1000000, 20)['members']
+        )->keyBy('member_id');
+
+        // Pool 200rb → modal 100rb (3:1) + partisipasi 100rb (hanya B).
+        $this->assertEquals(75000.0, (float) $rows[$memberA->id]['total_shu']);
+        $this->assertEquals(125000.0, (float) $rows[$memberB->id]['total_shu']);
+
+        // Pembagian rata akan memberi keduanya 100rb.
+        $this->assertNotEquals($rows[$memberA->id]['total_shu'], $rows[$memberB->id]['total_shu']);
     }
 }

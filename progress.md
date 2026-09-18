@@ -231,3 +231,55 @@ Sisa (butuh shell/mysql):
 - [ ] Hapus folder `backend/` setelah verifikasi
 - [ ] FE `npm run build`
 - Gap diketahui (bukan bagian revisi): `public/docs/openapi.json` masih menyebut ketua/pengepul (46×) dan belum mendokumentasikan `/wallet/withdraw-cash` — perlu regenerasi docs terpisah.
+
+---
+
+## 🔁 REVISI FASE-4 (Sprint Sampek Tuek) — 18 September 2026
+
+**Audit (cek `SPRINT SAMPEK TUEK.md` terhadap kedua repo):**
+
+R16, R17, R18 dari daftar fase. Yang ternyata tidak perlu dikerjakan di BE:
+- **R16 (harga kotor)**: tiket menyebut *"**Kalimatnya** pakai harga jual dan harga beli"* → perubahan kata, bukan skema. Rename kolom `price_unsorted` = YAGNI. Seluruh kerjaan pindah ke FE.
+- **R15 koreksi audit**: laporan pertama menyebut `getMemberHistory:237` salah field. **Tidak benar** — `ShuDistributionRepository::saveMemberRows` memetakan `$row['participation_shu']` ke kolom `participation_amount`, jadi yang dibaca FE memang porsi SHU-nya. Yang jadi dead data justru key `participation_amount` (tonase) di array hasil simulasi. Bug SHU murni di blok pembagian rata.
+
+**Plan eksekusi:**
+
+- [x] **R15 (BE SHU)**: `ShuCalculationEngine::simulateDistribution` — pembagian **rata** per jumlah kategori member diganti **proporsional**: jasa modal ikut `SUM(simpanan SELESAI)`, jasa partisipasi ikut `SUM(total_gross pickup selesai)`. Pool yang pembaginya nol (tidak ada simpanan / tidak ada setoran) masuk **cadangan**, bukan dibagi rata — sebelumnya anggota tanpa kontribusi tetap kebagian. Select `categories` & helper `with('user:id')` yang tidak lagi dipakai dihapus. Guard "tidak ada anggota aktif" tetap (dipindah ke `$members->isEmpty()`; perilaku sama karena helper lama selalu ≥ jumlah member).
+- [x] **R17 (BE kategori)**: migrasi `2026_09_18_000001_rename_pemasukan_sampah_lainnya_category.php` — `Pemasukan Sampah Lainnya` → `Penjualan Produk Lain`. Ada guard "kalau nama baru sudah ada, skip" karena `finance_categories.name` tidak unique → tanpa guard bisa jadi dua baris bermakna sama. `DatabaseSeeder` ikut diubah. Diverifikasi tidak ada `findCategoryIdByName` yang menunjuk kategori ini (aman dari lookup-by-name).
+- [x] **R18 (BE foto transaksi)**: migrasi `2026_09_18_000002_add_photo_to_transactions_table.php` (`photo_path` nullable); rule `nullable|image|mimes:jpg,jpeg,png|max:5120` di `CreateTransactionRequest`; penyimpanan di `TransactionController::store` ke disk `public` folder `transactions` (pola sama dengan foto timbang) — `photo` di-`unset` dari data yang diteruskan ke service; `Transaction` fillable + accessor `photoUrl()`; `TransactionResource` kirim `photo_url`.
+- [x] **Test baru**: `ShuDistributionTest::distribution_is_proportional_not_equal` (dua anggota, simpanan 3:1, hanya satu setor sampah → 75rb vs 125rb; pembagian rata akan memberi 100rb keduanya) dan `TransactionPhotoTest` (3 kasus: tanpa foto 201, dengan foto tersimpan di disk, non-image 422).
+
+**Belum dijalankan — shell diblokir classifier:**
+- [ ] `php artisan test --filter='ShuDistributionTest|TransactionPhotoTest'`
+- [ ] `php artisan migrate` (mysql live)
+- [ ] `php artisan storage:link` (kalau belum — dibutuhkan `photo_url` transaksi & timbang)
+
+Test lama yang menyentuh SHU (`simulate_computes_20_percent_pool`, `publish_credits_member_wallet_massally`) memakai **satu** anggota, jadi proporsional menghasilkan angka identik dengan pembagian rata — seharusnya tetap hijau, tapi belum dikonfirmasi karena runner tidak bisa dijalankan.
+
+---
+
+## 🔁 REVISI FASE-5 (Sprint Sampek Tuek) — 18 September 2026
+
+**Jawaban pemilik produk atas 3 pertanyaan yang memblokir:**
+
+1. **R20**: potongan 20% cukup sekali di katalog (`price_sell` → harga anggota 80%). Saat timbangan tidak boleh dipotong lagi.
+2. **R21**: penjemputan harian otomatis — cronjob tiap hari membuat tiket untuk semua anggota aktif, petugas tinggal menimbang.
+3. **R22**: anggota baru **harus** muncul otomatis di ploting → kode yang ada sudah benar, tidak ada kerjaan BE.
+
+**Plan eksekusi:**
+
+- [x] **R20 (BE harga)**: `TrashCategory::getPriceMemberUnsortedAttribute` (accessor baru); `TrashCategoryService::pickupPrice` basis pindah ke `price_member`/`price_member_unsorted`; `TrashWeighingService` — `FEE_RATE` konstanta dihapus, `totalNet = totalGross`, jurnal income `Potongan Admin Sampah 20%` tidak dibuat lagi, jurnal beli jadi satu-satunya jurnal dan id-nya yang disimpan di `pickup_items.transaction_id`; `rollbackWeighJournal` lookup-by-deskripsi dihapus (ponytail note lama di file itu lunas); `PickupRepository::addItemsAndComplete` + interface: param `$feeTransaction` → `$purchaseTransaction`; `ReceiptResource::operational_fee_percent` → 0; `TestingSeeder` angka diluruskan; `TrashWeighingTest` dua test disesuaikan + satu di-rename.
+  - Dampak angka: gudang sorted/unsorted **net anggota tidak berubah** (200rb & 208rb), jemput turun tipis 196.800 → 196.000 karena ongkos armada kini dikurangkan setelah harga anggota, bukan sebelum.
+  - ⚠️ **FE belum diubah**: `src/lib/weighing.js:4` masih `ADMIN_FEE_RATE = 0.2` → preview petugas akan beda 20% dari angka yang disimpan. Wajib menyusul.
+- [x] **R21 (BE jadwal)**: `app/Console/Commands/GenerateDailyPickups.php` (`pickups:generate-daily`, chunkById 200, idempoten — lewati alamat yang sudah punya tiket di tanggal itu termasuk permintaan manual); `routes/console.php` `->dailyAt('05:00')`; `TrashWeighingService::createDailyTicket` — satu baris `members` = satu alamat = satu tiket, lokasi dari kategori alamat, `officer_id` dari plotting.
+  - Keputusan default yang mudah diubah: jam `scheduled_at` 07:00, `is_sorted` false, anggota tanpa plotting tetap dapat tiket dengan `officer_id` null.
+  - Beban: 1 anggota = 1 tiket/hari (1.000 anggota = 1.000 tiket/hari).
+- [x] **Test baru**: `tests/Feature/Api/DailyPickupTest.php` — 5 kasus (per alamat + lokasi + plotting, idempoten, skip kalau sudah ada permintaan manual, anggota nonaktif dilewati, anggota tanpa plotting tetap dapat tiket).
+
+**Belum dijalankan (shell masih diblokir classifier):**
+- [ ] `php artisan test --filter='TrashWeighingTest|DailyPickupTest|ShuDistributionTest|TransactionPhotoTest'`
+- [ ] `php artisan migrate` (mysql live) — termasuk 2 migrasi Fase-4 + `photo_path` transaksi
+- [ ] `php artisan storage:link`
+- [ ] Daftarkan scheduler di cron server: `* * * * * cd /path && php artisan schedule:run`
+
+**Dokumen yang belum disesuaikan** (bukan kode, tapi menyesatkan kalau dibiarkan): `route-api.md`, `public/docs/openapi.json`, dan `PRD_Koperasi_Jasa_Mulyo_Raharjo_Lestari.md:17-18` masih menjelaskan potongan admin 20% per transaksi timbang.

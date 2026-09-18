@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // #15 — hold tagihan rutin Rp50.000 dari saldo anggota, awal setiap bulan.
 Schedule::command('savings:hold-monthly')->monthlyOn(1, '01:00');
+
+// Penjemputan harian: tiket otomatis untuk semua anggota aktif, per alamat,
+// mengikuti plotting petugas. Dijalankan pagi agar petugas tinggal menimbang.
+Schedule::command('pickups:generate-daily')->dailyAt('05:00');

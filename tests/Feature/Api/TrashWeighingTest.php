@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\Test;
 class TrashWeighingTest extends ApiTestCase
 {
     #[Test]
-    public function weighing_charges_20_percent_fee_and_credits_net_to_member(): void
+    public function weighing_pays_the_catalog_member_price_without_a_second_deduction(): void
     {
         $this->seedCore();
         [$petugas] = $this->makeUserWithMember('petugas');
@@ -21,35 +21,38 @@ class TrashWeighingTest extends ApiTestCase
         $weighing = app(TrashWeighingService::class);
         $ticket = $weighing->createTicket(['member_id' => $member->id, 'location_type' => 'gudang'], $petugas);
 
-        // API: petugas submit timbangan — 2kg Tembaga unsorted (Rp125.000/kg)
+        // API: petugas submit timbangan — 2kg Tembaga unsorted (kotor 125.000 → anggota 100.000/kg)
         $response = $this->actingAs($petugas)->postJson("/api/v1/pickups/{$ticket->id}/weigh-items", [
             'items' => [
                 ['category_id' => 1, 'weight_kg' => 2],
             ],
         ]);
 
-        // gross 250.000, fee 20% = 50.000, net 200.000
+        // Harga anggota = 80% harga kotor = 100.000/kg → 200.000, tanpa potongan lagi.
         $response->assertStatus(200)
             ->assertJsonPath('data.pickup.status', 'selesai')
             ->assertJsonPath('data.net_earned', 200000);
 
         $pickup = Pickup::find($ticket->id);
-        $this->assertEquals('250000', $pickup->total_gross);
-        $this->assertEquals('50000', $pickup->total_fee);
-        $this->assertEquals('200000', $pickup->total_net);
+        $this->assertEquals(200000, $pickup->total_gross);
+        $this->assertEquals(0, $pickup->total_fee);
+        $this->assertEquals(200000, $pickup->total_net);
 
-        // Jurnal kas: fee 20% tercatat income
-        $fee = Transaction::where('type', 'income')->where('amount', 50000)->first();
-        $this->assertNotNull($fee, 'fee 20% journal missing');
-        $this->assertEquals('berhasil', $fee->status);
+        // Tidak ada jurnal income potongan 20% lagi — margin koperasi melekat di
+        // selisih harga jual vs harga beli, bukan potongan saat menimbang.
+        $this->assertNull(
+            Transaction::where('type', 'income')->where('amount', 50000)->first(),
+            'jurnal potongan 20% seharusnya sudah tidak dibuat',
+        );
 
         // Jurnal kas: beli sampah (expense) harus punya category_id — regression SQL 1048
-        $purchase = Transaction::where('type', 'expense')->where('description', 'Beli sampah anggota #'.$member->id)->first();
+        $purchase = Transaction::where('type', 'expense')->where('amount', 200000)
+            ->where('description', 'Beli sampah anggota #'.$ticket->id)->first();
         $this->assertNotNull($purchase, 'purchase journal missing');
         $this->assertNotNull($purchase->category_id, 'purchase journal category_id is null');
         $this->assertEquals($petugas->id, $purchase->handled_by, 'petugas harus user yang login');
 
-        // Saldo dompet anggota naik 200.000
+        // Saldo dompet anggota naik 200.000 — angka yang diterima anggota tidak berubah
         $this->assertEquals(200000.0, app(WalletService::class)->getMemberWalletSummary($member->id)['current_balance']);
     }
 
@@ -63,14 +66,14 @@ class TrashWeighingTest extends ApiTestCase
         $weighing = app(TrashWeighingService::class);
         $ticket = $weighing->createTicket(['member_id' => $member->id, 'location_type' => 'jemput_rumah'], $petugas);
 
-        // 2kg Tembaga unsorted jemput: 125.000 - 2.000 (logam) = 123.000/kg → gross 246.000, net 196.800
+        // 2kg Tembaga unsorted jemput: harga anggota 100.000 - 2.000 (ongkos logam) = 98.000/kg → 196.000
         $this->actingAs($petugas)->postJson("/api/v1/pickups/{$ticket->id}/weigh-items", [
             'items' => [['category_id' => 1, 'weight_kg' => 2]],
         ])->assertStatus(200);
 
         $pickup = Pickup::find($ticket->id);
-        $this->assertEquals('246000', $pickup->total_gross);
-        $this->assertEquals('196800', $pickup->total_net);
+        $this->assertEquals(196000, $pickup->total_gross);
+        $this->assertEquals(196000, $pickup->total_net);
     }
 
     #[Test]
@@ -92,7 +95,7 @@ class TrashWeighingTest extends ApiTestCase
             'items' => [['category_id' => 1, 'weight_kg' => 2]],
         ])->assertStatus(200);
 
-        $purchase = Transaction::where('description', 'Beli sampah anggota #'.$member->id)->get();
+        $purchase = Transaction::where('description', 'Beli sampah anggota #'.$ticket->id)->get();
         $this->assertCount(2, $purchase, 'reweigh harus meninggalkan jurnal lama (gagal) + baru (berhasil)');
         $this->assertEqualsCanonicalizing(['berhasil', 'gagal'], $purchase->pluck('status')->all());
         $purchase->pluck('category_id')->each(fn ($id) => $this->assertNotNull($id, 'jurnal beli sampah tidak boleh category_id null'));
@@ -136,9 +139,9 @@ class TrashWeighingTest extends ApiTestCase
     }
 
     #[Test]
-    public function gudang_sorted_uses_price_sell(): void
+    public function gudang_sorted_uses_the_member_price(): void
     {
-        // Revisi fase-3: sorted gudang dinilai harga jual (net anggota = 80% harga jual).
+        // Sorted gudang dinilai harga anggota katalog (80% harga jual), tanpa potongan lagi.
         $this->seedCore();
         [$petugas] = $this->makeUserWithMember('petugas');
         [, $member] = $this->makeUserWithMember('anggota');
@@ -148,12 +151,12 @@ class TrashWeighingTest extends ApiTestCase
             $petugas,
         );
 
-        // 2kg × price_sell 130.000 = 260.000 (bukan price_sorted)
+        // 2kg × 80% × price_sell 130.000 = 208.000
         $this->actingAs($petugas)->postJson("/api/v1/pickups/{$ticket->id}/weigh-items", [
             'items' => [['category_id' => 1, 'weight_kg' => 2]],
         ])->assertStatus(200);
 
-        $this->assertEquals('260000', Pickup::find($ticket->id)->total_gross);
+        $this->assertEquals(208000, Pickup::find($ticket->id)->total_gross);
     }
 
     #[Test]

@@ -41,7 +41,16 @@ class TransactionController extends Controller
      */
     public function store(CreateTransactionRequest $request): JsonResponse
     {
-        $transaction = $this->transactionService->createTransaction($request->validated(), $request->user());
+        $data = $request->validated();
+
+        // Bukti foto opsional → disk public (sama seperti foto timbang).
+        // 'photo' tidak diteruskan ke service; yang disimpan cuma path-nya.
+        unset($data['photo']);
+        if ($request->hasFile('photo')) {
+            $data['photo_path'] = $request->file('photo')->store('transactions', 'public');
+        }
+
+        $transaction = $this->transactionService->createTransaction($data, $request->user());
 
         return response()->json([
             'success' => true,

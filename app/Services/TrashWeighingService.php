@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessLogicException;
+use App\Models\Member;
 use App\Models\Pickup;
-use App\Models\Transaction;
 use App\Models\TrashCategory;
 use App\Models\User;
 use App\Repositories\Contracts\MemberRepositoryInterface;
@@ -16,10 +16,6 @@ use Illuminate\Support\Facades\DB;
 
 class TrashWeighingService
 {
-    /**
-     * Porsi biaya operasional koperasi dari nilai bruto sampah.
-     */
-    private const FEE_RATE = 0.20;
     public function __construct(
         private readonly PickupRepositoryInterface $pickupRepository,
         private readonly TrashCategoryRepositoryInterface $trashCategoryRepository,
@@ -75,8 +71,32 @@ class TrashWeighingService
     }
 
     /**
-     * Core engine: hitung nilai per item (tarif hari ini + lokasi), potong 20% koperasi,
-     * kredit 80% ke anggota (total_net), dan catat jurnal kas — satu transaksi DB.
+     * Tiket penjemputan harian untuk satu alamat anggota (dipakai scheduler).
+     *
+     * Petugas mengikuti plotting anggota. Anggota tanpa plotting tetap dapat
+     * tiket (officer_id null) supaya pengurus bisa menugaskan manual — bukan
+     * hilang dari daftar harian.
+     */
+    public function createDailyTicket(Member $member, string $date): Pickup
+    {
+        // Kategori anggota = jenis alamat (rumah/pasar), jadi sekaligus penentu lokasi jemput.
+        $locationType = $member->category?->name === 'pasar' ? 'jemput_pasar' : 'jemput_rumah';
+
+        return $this->pickupRepository->createHeader([
+            'member_id' => $member->id,
+            'officer_id' => $member->officer_id,
+            'location_type' => $locationType,
+            'is_sorted' => false,
+            'scheduled_at' => $date.' 07:00:00',
+            'notes' => 'Jadwal harian otomatis',
+            'status' => 'menunggu',
+        ]);
+    }
+
+    /**
+     * Core engine: hitung nilai per item dari harga anggota katalog (sudah termasuk
+     * potongan 20% koperasi), kredit penuh ke anggota, dan catat jurnal kas —
+     * satu transaksi DB.
      *
      * @param  array<int, array{category_id: int, weight_kg?: float, unit_count?: int}>  $items
      */
@@ -103,11 +123,11 @@ class TrashWeighingService
                 // ponytail: kategori di-lock supaya harga tidak berubah di tengah penimbangan; batch fetch jika item banyak.
                 $category = TrashCategory::lockForUpdate()->findOrFail($item['category_id']);
 
-                // Lokasi jemput (rumah/pasar) pakai tarif jemput (base − potongan);
-                // gudang sorted = harga jual (layak jual), unsorted = harga kotor.
+                // Lokasi jemput (rumah/pasar) pakai tarif jemput (harga anggota − ongkos);
+                // gudang pakai harga anggota katalog langsung.
                 $unitPrice = str_starts_with($pickup->location_type, 'jemput')
                     ? $this->trashCategoryService->pickupPrice($category, $pickup->is_sorted)
-                    : ($pickup->is_sorted ? (float) $category->price_sell : (float) $category->price_unsorted);
+                    : ($pickup->is_sorted ? (float) $category->price_member : (float) $category->price_member_unsorted);
 
                 $quantity = $category->unit === 'kg'
                     ? (float) ($item['weight_kg'] ?? 0)
@@ -129,26 +149,17 @@ class TrashWeighingService
             }
 
             $totalGross = round($totalGross, 2);
-            $totalFee = round($totalGross * self::FEE_RATE, 2);
-            $totalNet = round($totalGross - $totalFee, 2);
-
-            // Jurnal kas: potongan 20% masuk sebagai pemasukan koperasi
-            $feeCategoryId = $this->transactionRepository->findCategoryIdByName('Potongan Admin Sampah 20%');
-            $feeTransaction = $this->transactionRepository->create([
-                'member_id' => $pickup->member_id,
-                'category_id' => $feeCategoryId,
-                'type' => 'income',
-                'amount' => $totalFee,
-                'description' => "Potongan 20% transaksi timbang #{$pickup->id}",
-                'payment_method' => 'sampah',
-                'status' => 'berhasil',
-                'handled_by' => $officer->id,
-            ]);
+            // Potongan 20% sudah melekat di harga anggota katalog (price_member =
+            // 80% harga jual) — tidak dipotong lagi di timbangan. Kolom total_fee
+            // tetap ada demi data timbangan lama; yang baru selalu 0.
+            $totalNet = $totalGross;
 
             // Jurnal kas: nilai bersih yang dibayarkan ke anggota = biaya beli sampah
             // (expense koperasi, terpotong otomatis dari kas saat membeli sampah anggota).
+            // Tidak ada lagi jurnal income "Potongan Admin Sampah 20%" — margin koperasi
+            // kini melekat pada selisih harga jual vs harga beli, bukan potongan di timbangan.
             $buyCategoryId = $this->transactionRepository->findCategoryIdByName('Beli Sampah Anggota');
-            $this->transactionRepository->create([
+            $purchaseTransaction = $this->transactionRepository->create([
                 'member_id' => $pickup->member_id,
                 'category_id' => $buyCategoryId,
                 'type' => 'expense',
@@ -159,14 +170,14 @@ class TrashWeighingService
                 'handled_by' => $officer->id,
             ]);
 
-            $this->pickupRepository->addItemsAndComplete($pickup, $itemRows, $feeTransaction, $totalGross, $totalFee, $totalNet, $officer);
+            $this->pickupRepository->addItemsAndComplete($pickup, $itemRows, $purchaseTransaction, $totalGross, 0.0, $totalNet, $officer);
 
             return $this->pickupRepository->findByIdWithDetails($pickup->id);
         });
     }
 
     /**
-     * Batalkan transaksi timbang selesai: rollback jurnal 20% dan saldo (via status).
+     * Batalkan transaksi timbang selesai: rollback jurnal beli sampah dan saldo (via status).
      */
     public function cancelPickup(int $pickupId, string $reason): Pickup
     {
@@ -196,21 +207,14 @@ class TrashWeighingService
     }
 
     /**
-     * Batalkan seluruh jurnal kas satu timbangan: transaksi fee 20% (via item)
-     * dan expense "Beli sampah anggota" (dicari via deskripsi — id transaksi
-     * expense tidak tersimpan di tabel items).
-     * ponytail: lookup by description — simpan expense_transaction_id di tabel
-     * pickups kalau deskripsi berubah sering.
+     * Batalkan jurnal kas satu timbangan. Tiap item menunjuk jurnal beli sampah
+     * miliknya, jadi tidak perlu lagi mencari berdasarkan deskripsi.
      */
     private function rollbackWeighJournal(Pickup $pickup): void
     {
         $pickup->load('items')->items->pluck('transaction_id')->filter()->unique()->each(
             fn ($transactionId) => $this->transactionRepository->updateStatus($transactionId, 'gagal'),
         );
-
-        Transaction::where('description', "Beli sampah anggota #{$pickup->id}")
-            ->where('status', 'berhasil')
-            ->update(['status' => 'gagal']);
 
         $pickup->items()->delete();
     }
