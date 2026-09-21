@@ -1,3 +1,10 @@
+> ⚠️ **USANG — JANGAN DIPAKAI SEBAGAI ACUAN.**
+> Sumber tunggal dokumentasi API sekarang: [`public/docs/openapi.json`](public/docs/openapi.json) (OpenAPI 3.1, 56 endpoint).
+> Tabel di bawah ini sudah menyimpang dari kode: masih memuat `POST /auth/register-member` (sudah dihapus), role `Ketua`/`Bendahara` (sudah tidak ada), potongan 20% saat menimbang (sudah dihapus, R20), dan enum jenis sampah lama (`anorganik`).
+> Isinya dipertahankan hanya sebagai riwayat.
+
+---
+
 # DAFTAR SPESIFIKASI ROUTE RESTful API (Web Service Backend)
 ## Sistem Informasi Koperasi & Bank Sampah "Koperasi Jasa Mulyo Raharjo Lestari"
 **Base URL:** `https://api.koperasimulyoraharjo.com/api/v1`  
