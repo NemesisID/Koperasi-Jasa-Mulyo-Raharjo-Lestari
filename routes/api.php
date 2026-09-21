@@ -84,8 +84,10 @@ Route::prefix('v1')->group(function () {
     Route::prefix('pickups')->middleware('auth:sanctum')->group(function () {
         Route::get('/', [PickupController::class, 'index'])->middleware('role:pengurus,petugas,anggota');
         Route::post('/', [PickupController::class, 'store'])->middleware('role:pengurus,petugas,anggota');
-        // Harus di atas GET /{id} — kalau tidak, "stats" tertangkap sebagai id.
+        // Harus di atas GET /{id} — kalau tidak, "stats"/"reorder" tertangkap sebagai id.
         Route::get('/stats', [PickupController::class, 'stats'])->middleware('role:pengurus,petugas');
+        // Urutan antrean penjemputan (drag-drop FE-10)
+        Route::patch('/reorder', [PickupController::class, 'reorder'])->middleware('role:pengurus,petugas');
         Route::post('/{id}/weigh-items', [PickupController::class, 'weighItems'])->middleware('role:pengurus,petugas');
         Route::post('/{id}/photo', [PickupController::class, 'uploadPhoto'])->middleware('role:pengurus,petugas');
         // Own-check untuk role anggota ada di controller (show/receipt)

@@ -43,7 +43,7 @@ class MemberPlottingTest extends ApiTestCase
     {
         $this->seedCore();
         $category = MemberCategory::create(['name' => 'rumah']);
-        [, $pengurus] = $this->makeUserWithMember('pengurus');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
 
         // petugas_lama dibuat belakangan (id lebih besar) tapi created_at lebih awal —
         // yang menentukan harus created_at, bukan id.
@@ -73,7 +73,7 @@ class MemberPlottingTest extends ApiTestCase
     {
         $this->seedCore();
         MemberCategory::create(['name' => 'rumah']);
-        [, $pengurus] = $this->makeUserWithMember('pengurus');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
         $petugas = $this->makePetugas('petugas_satu');
 
         $this->actingAs($pengurus)
@@ -98,7 +98,7 @@ class MemberPlottingTest extends ApiTestCase
     {
         $this->seedCore();
         $category = MemberCategory::create(['name' => 'rumah']);
-        [, $pengurus] = $this->makeUserWithMember('pengurus');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
         $calon = $this->makeBareUser('calon_tanpa_petugas');
 
         $this->actingAs($pengurus)
@@ -122,7 +122,7 @@ class MemberPlottingTest extends ApiTestCase
         $this->seedCore();
         $rumah = MemberCategory::create(['name' => 'rumah']);
         $pasar = MemberCategory::create(['name' => 'pasar']);
-        [, $pengurus] = $this->makeUserWithMember('pengurus');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
 
         $petugasA = $this->makePetugas('petugas_a', now()->subDays(2)->toDateTimeString());
         $petugasB = $this->makePetugas('petugas_b', now()->subDay()->toDateTimeString());
@@ -158,7 +158,7 @@ class MemberPlottingTest extends ApiTestCase
     {
         $this->seedCore();
         $category = MemberCategory::create(['name' => 'rumah']);
-        [, $pengurus] = $this->makeUserWithMember('pengurus');
+        [$pengurus] = $this->makeUserWithMember('pengurus');
 
         $petugasA = $this->makePetugas('petugas_a', now()->subDays(2)->toDateTimeString());
         $petugasB = $this->makePetugas('petugas_b', now()->subDay()->toDateTimeString());

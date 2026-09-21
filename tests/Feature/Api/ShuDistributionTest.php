@@ -28,7 +28,7 @@ class ShuDistributionTest extends ApiTestCase
         $weighing->weighAndComplete($ticket->id, [['category_id' => $tembaga->id, 'weight_kg' => 2]], $petugas);
         app(SavingsService::class)->recordSavingsPayment(
             ['member_id' => $member->id, 'label' => 'POKOK', 'jumlah' => 100000, 'metode' => 'tunai'],
-            $this->makeUserWithMember('pengurus')[0],
+            $pengurus,
         );
 
         $response = $this->actingAs($pengurus)->postJson('/api/v1/shu/simulate', [
@@ -63,7 +63,7 @@ class ShuDistributionTest extends ApiTestCase
         // Simpanan POKOK agar anggota dapat jasa modal + jasa partisipasi (50/50 → 200rb total)
         app(SavingsService::class)->recordSavingsPayment(
             ['member_id' => $member->id, 'label' => 'POKOK', 'jumlah' => 100000, 'metode' => 'tunai'],
-            $this->makeUserWithMember('pengurus')[0],
+            $pengurus,
         );
 
         $engine = app(ShuCalculationEngine::class);
@@ -80,8 +80,10 @@ class ShuDistributionTest extends ApiTestCase
         $balanceAfter = app(WalletService::class)->getMemberWalletSummary($member->id)['current_balance'];
         $this->assertEquals(200000.0, $balanceAfter - $balanceBefore);
 
-        // Jurnal expense dividen tercatat
-        $this->assertSame(1, \App\Models\Transaction::where('type', 'expense')->where('amount', 200000)->count());
+        // Jurnal expense dividen tercatat — dicocokkan per kategori karena jurnal
+        // beli sampah anggota di test ini kebetulan senilai sama (2 kg × 100rb).
+        $shuCategoryId = \App\Models\FinanceCategory::where('name', 'Distribusi SHU Anggota')->value('id');
+        $this->assertSame(1, \App\Models\Transaction::where('type', 'expense')->where('amount', 200000)->where('category_id', $shuCategoryId)->count());
     }
 
     #[Test]
@@ -108,9 +110,10 @@ class ShuDistributionTest extends ApiTestCase
     public function only_pengurus_can_publish(): void
     {
         $this->seedCore();
-        [$bendahara] = $this->makeUserWithMember('pengurus');
+        [$anggota] = $this->makeUserWithMember('anggota');
 
-        $this->actingAs($bendahara)->postJson('/api/v1/shu/publish', [
+        // Role middleware menolak sebelum validasi id — anggota bukan pengurus.
+        $this->actingAs($anggota)->postJson('/api/v1/shu/publish', [
             'shu_distribution_id' => 999,
         ])->assertStatus(403);
     }

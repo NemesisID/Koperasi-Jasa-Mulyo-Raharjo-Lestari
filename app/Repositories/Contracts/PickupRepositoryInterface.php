@@ -43,4 +43,10 @@ interface PickupRepositoryInterface
      * Batalkan pickup (status batal, catat alasan).
      */
     public function cancel(Pickup $pickup, string $reason): void;
+
+    /**
+     * Set urutan penjemputan sesuai posisi id di $ids (1, 2, 3, …) — dipakai
+     * endpoint reorder drag-drop. Id yang tidak dikirim mempertahankan urutannya.
+     */
+    public function reorder(array $ids): void;
 }

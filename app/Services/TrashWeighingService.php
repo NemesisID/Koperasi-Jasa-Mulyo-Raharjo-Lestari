@@ -38,6 +38,14 @@ class TrashWeighingService
         return $this->pickupRepository->statusCounts();
     }
 
+    /**
+     * Susun ulang urutan antrean penjemputan (R23) — validasi sudah di controller.
+     */
+    public function reorderPickups(array $ids): void
+    {
+        $this->pickupRepository->reorder($ids);
+    }
+
     public function getPickup(int $id): Pickup
     {
         return $this->pickupRepository->findByIdWithDetails($id);

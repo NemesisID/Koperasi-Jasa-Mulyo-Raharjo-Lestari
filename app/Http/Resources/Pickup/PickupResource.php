@@ -14,6 +14,7 @@ class PickupResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'sort_order' => $this->sort_order,
             'member' => $this->whenLoaded('member', fn () => [
                 'id' => $this->member->id,
                 'member_code' => $this->member->member_code,

@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\User;
 use App\Repositories\Contracts\PickupRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 class PickupRepository implements PickupRepositoryInterface
 {
@@ -24,6 +25,10 @@ class PickupRepository implements PickupRepositoryInterface
                     ->where('name', 'like', "%{$search}%")
                     ->orWhere('member_code', 'like', "%{$search}%"));
             })
+            // Urutan penjemputan (R23): urutan petugas dulu. `sort_order IS NULL`
+            // menaruh baris tanpa urutan ke bawah di MySQL maupun SQLite (ASC
+            // default menaruh NULL di awal), lalu terbaru dulu.
+            ->orderByRaw('sort_order IS NULL, sort_order')
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 15);
     }
@@ -58,6 +63,9 @@ class PickupRepository implements PickupRepositoryInterface
 
     public function createHeader(array $data): Pickup
     {
+        // Tiket baru masuk ke ekor antrean penjemputan.
+        $data['sort_order'] = (int) Pickup::max('sort_order') + 1;
+
         return Pickup::create($data);
     }
 
@@ -91,5 +99,14 @@ class PickupRepository implements PickupRepositoryInterface
             'status' => 'batal',
             'notes' => trim(($pickup->notes ? $pickup->notes."\n" : '')."[BATAL] {$reason}"),
         ]);
+    }
+
+    public function reorder(array $ids): void
+    {
+        DB::transaction(function () use ($ids) {
+            foreach (array_values($ids) as $position => $id) {
+                Pickup::where('id', $id)->update(['sort_order' => $position + 1]);
+            }
+        });
     }
 }

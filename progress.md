@@ -249,12 +249,9 @@ R16, R17, R18 dari daftar fase. Yang ternyata tidak perlu dikerjakan di BE:
 - [x] **R18 (BE foto transaksi)**: migrasi `2026_09_18_000002_add_photo_to_transactions_table.php` (`photo_path` nullable); rule `nullable|image|mimes:jpg,jpeg,png|max:5120` di `CreateTransactionRequest`; penyimpanan di `TransactionController::store` ke disk `public` folder `transactions` (pola sama dengan foto timbang) — `photo` di-`unset` dari data yang diteruskan ke service; `Transaction` fillable + accessor `photoUrl()`; `TransactionResource` kirim `photo_url`.
 - [x] **Test baru**: `ShuDistributionTest::distribution_is_proportional_not_equal` (dua anggota, simpanan 3:1, hanya satu setor sampah → 75rb vs 125rb; pembagian rata akan memberi 100rb keduanya) dan `TransactionPhotoTest` (3 kasus: tanpa foto 201, dengan foto tersimpan di disk, non-image 422).
 
-**Belum dijalankan — shell diblokir classifier:**
-- [ ] `php artisan test --filter='ShuDistributionTest|TransactionPhotoTest'`
-- [ ] `php artisan migrate` (mysql live)
-- [ ] `php artisan storage:link` (kalau belum — dibutuhkan `photo_url` transaksi & timbang)
+**Dijalankan 21 September 2026 (shell sudah bisa) — lihat bagian VERIFIKASI FASE-4/5 di bawah.**
 
-Test lama yang menyentuh SHU (`simulate_computes_20_percent_pool`, `publish_credits_member_wallet_massally`) memakai **satu** anggota, jadi proporsional menghasilkan angka identik dengan pembagian rata — seharusnya tetap hijau, tapi belum dikonfirmasi karena runner tidak bisa dijalankan.
+Test lama yang menyentuh SHU (`simulate_computes_20_percent_pool`, `publish_credits_member_wallet_massally`) memakai **satu** anggota, jadi proporsional menghasilkan angka identik dengan pembagian rata — terkonfirmasi hijau setelah 3 bug test diperbaiki.
 
 ---
 
@@ -276,10 +273,38 @@ Test lama yang menyentuh SHU (`simulate_computes_20_percent_pool`, `publish_cred
   - Beban: 1 anggota = 1 tiket/hari (1.000 anggota = 1.000 tiket/hari).
 - [x] **Test baru**: `tests/Feature/Api/DailyPickupTest.php` — 5 kasus (per alamat + lokasi + plotting, idempoten, skip kalau sudah ada permintaan manual, anggota nonaktif dilewati, anggota tanpa plotting tetap dapat tiket).
 
-**Belum dijalankan (shell masih diblokir classifier):**
-- [ ] `php artisan test --filter='TrashWeighingTest|DailyPickupTest|ShuDistributionTest|TransactionPhotoTest'`
-- [ ] `php artisan migrate` (mysql live) — termasuk 2 migrasi Fase-4 + `photo_path` transaksi
-- [ ] `php artisan storage:link`
+**Dijalankan 21 September 2026 (shell sudah bisa):**
+- [x] `php artisan test` — lulus semua (lihat VERIFIKASI FASE-4/5 di bawah)
+- [x] `php artisan migrate` + `storage:link` — di sqlite lokal (`.env` default project; MySQL 8.4.6 ada di Laragon tapi servernya tidak jalan saat verifikasi). Jalankan `php artisan migrate` sekali lagi kalau server live pakai MySQL.
 - [ ] Daftarkan scheduler di cron server: `* * * * * cd /path && php artisan schedule:run`
+
+---
+
+## ✅ VERIFIKASI FASE-4/5 + R23 (Sprint Sampek Tuek) — 21 September 2026
+
+**R19 — verifikasi lulus semua.** Yang dilakukan:
+
+1. `composer install` — `vendor/` ternyata belum pernah ter-install (penyebab utama "shell diblokir" sebelumnya tidak bisa diatasi).
+2. `.env` dibuat dari `.env.example` + `key:generate`; DB sqlite (`database/database.sqlite`).
+3. `php artisan migrate` — 31 migrasi lulus (termasuk 2 migrasi Fase-4: rename kategori + `photo_path` transaksi).
+4. `php artisan storage:link` — dibuat.
+5. `php artisan test` — **60/60 lulus** (183→194 assertion) setelah 3 bug **test** diperbaiki (bukan bug aplikasi — test memang belum pernah jalan):
+   - `ApiTestCase::seedCore` kurang kategori finance `Biaya Operasional Lapangan` & `Penjualan Sampah` (ada di `DatabaseSeeder`, tidak ada di seed test) → `TransactionPhotoTest` dapat `category_id` null.
+   - `MemberPlottingTest` (5 kasus) destruktur `[, $pengurus]` padahal `makeUserWithMember('pengurus')` mengembalikan `[$user, null]` → `actingAs(null)`. Diganti `[$pengurus]`.
+   - `ShuDistributionTest` memanggil `makeUserWithMember('pengurus')` dua kali (username tetap `test_pengurus`) → `UniqueConstraintViolation`; dipakai ulang variabel `$pengurus`. Test `only_pengurus_can_publish` juga salah harapan (publish dengan user pengurus + id invalid → 422, bukan 403); diganti acting-as anggota agar benar-benar menguji tolak role (403).
+   - `ShuDistributionTest::publish_credits_member_wallet_massally` assertion jurnal dipersempit ke kategori `Distribusi SHU Anggota` — jurnal "Beli Sampah Anggota" di skenario itu kebetulan senilai sama (2 kg × harga anggota unsorted 100rb).
+6. `php artisan migrate:fresh --seed` + `db:seed` ulang — seeder tidak crash dan idempoten (users=4, fcats=11, tcats=22).
+
+**Catatan lingkungan:** MySQL live belum tersentuh — server MySQL Laragon tidak jalan saat verifikasi dan `.env` project default-nya sqlite. Kalau production pakai MySQL, jalankan `php artisan migrate` di sana.
+
+**R23 — index urutan penjemputan + endpoint reorder: SELESAI.**
+
+- Keputusan (blocker lama): urutan **global** di kolom `pickups.sort_order`, bukan pivot per petugas — antrean harian dikerjakan bareng, drag-drop FE-10 cukup satu sumber urutan. Kalau nanti per-petugas, tinggal pindah kolom ke tabel pivot.
+- Migrasi `2026_09_21_000001_add_sort_order_to_pickups_table.php` — kolom `unsignedInteger sort_order` nullable + index; backfill data lama dari urutan `created_at`.
+- `PickupRepository::createHeader` — tiket baru di-append (`max(sort_order)+1`), jadi urutan hasil drag-drop tidak tertimpa.
+- `PickupRepository::paginate` — `orderByRaw('sort_order IS NULL, sort_order')` + `orderByDesc('id')`; baris tanpa sort_order jatuh ke bawah (ekspresi `IS NULL` dipilih karena MySQL & SQLite sama-sama menaruh NULL di awal untuk ASC).
+- Endpoint `PATCH /api/v1/pickups/reorder` (`role:pengurus,petugas`) — body `ids` array berurutan; validasi `distinct|exists:pickups,id`; id yang tidak dikirim mempertahankan urutannya. Terdaftar sebelum `GET /{id}`.
+- `PickupResource` kirim `sort_order`.
+- Test: `tests/Feature/Api/PickupReorderTest.php` — 5 kasus (kirim id terbalik → GET /pickups urut baru, tiket baru masuk ekor antrean, id tak dikirim tetap, id unknown/duplikat 422, anggota 403).
 
 **Dokumen yang belum disesuaikan** (bukan kode, tapi menyesatkan kalau dibiarkan): `route-api.md`, `public/docs/openapi.json`, dan `PRD_Koperasi_Jasa_Mulyo_Raharjo_Lestari.md:17-18` masih menjelaskan potongan admin 20% per transaksi timbang.

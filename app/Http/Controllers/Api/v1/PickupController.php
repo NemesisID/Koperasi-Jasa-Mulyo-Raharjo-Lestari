@@ -61,6 +61,27 @@ class PickupController extends Controller
     }
 
     /**
+     * PATCH /api/v1/pickups/reorder — susun ulang urutan antrean penjemputan (R23).
+     * Terima `ids` berurutan sesuai posisi baru; id yang tidak dikirim tidak diubah.
+     * Harus terdaftar sebelum GET /{id} agar "reorder" tidak tertangkap sebagai id.
+     */
+    public function reorder(Request $request): JsonResponse
+    {
+        $request->validate([
+            'ids' => ['required', 'array', 'min:1'],
+            'ids.*' => ['integer', 'distinct', 'exists:pickups,id'],
+        ]);
+
+        $this->weighingService->reorderPickups($request->input('ids'));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Urutan penjemputan berhasil diperbarui.',
+            'data' => ['reordered' => count($request->input('ids'))],
+        ]);
+    }
+
+    /**
      * POST /api/v1/pickups
      */
     public function store(CreatePickupTicketRequest $request): JsonResponse

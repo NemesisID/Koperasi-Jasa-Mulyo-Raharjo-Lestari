@@ -12,6 +12,7 @@ class Pickup extends Model
     use HasFactory;
 
     protected $fillable = [
+        'sort_order',
         'officer_id',
         'member_id',
         'location_type',

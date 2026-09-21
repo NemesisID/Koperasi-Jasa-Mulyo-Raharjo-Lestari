@@ -26,6 +26,9 @@ abstract class ApiTestCase extends TestCase
             ['name' => 'Pencairan Saldo Sampah / Cashout', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Distribusi SHU Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
             ['name' => 'Beli Sampah Anggota', 'type' => 'expense', 'group_type' => 'operasional'],
+            // Sama dengan DatabaseSeeder — jurnal modul keuangan butuh kategori ini.
+            ['name' => 'Biaya Operasional Lapangan', 'type' => 'expense', 'group_type' => 'operasional'],
+            ['name' => 'Penjualan Sampah', 'type' => 'income', 'group_type' => 'penjualan_sampah'],
         ]);
 
         TrashCategory::create([
