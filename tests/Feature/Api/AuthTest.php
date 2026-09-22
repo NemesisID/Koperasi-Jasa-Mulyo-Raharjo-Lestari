@@ -84,6 +84,7 @@ class AuthTest extends ApiTestCase
         $this->postJson('/api/v1/auth/register-member', [
             'name' => 'Penyusup',
             'username' => 'penyusup',
+            'email' => 'penyusup@example.com',
             'password' => 'password123',
             'member_types' => ['rumah'],
             'phone' => '08123456789',
@@ -104,6 +105,7 @@ class AuthTest extends ApiTestCase
             ->postJson('/api/v1/users', [
                 'name' => 'Anggota Baru',
                 'username' => 'anggota_baru',
+                'email' => 'anggota_baru@example.com',
                 'password' => 'password123',
                 'role' => 'anggota',
                 'member_types' => ['rumah'],
@@ -126,6 +128,7 @@ class AuthTest extends ApiTestCase
             ->postJson('/api/v1/users', [
                 'name' => 'Anggota Gelap',
                 'username' => 'anggota_gelap',
+                'email' => 'anggota_gelap@example.com',
                 'password' => 'password123',
                 'role' => 'anggota',
                 'member_types' => ['rumah'],

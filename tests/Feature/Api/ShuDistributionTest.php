@@ -129,6 +129,7 @@ class ShuDistributionTest extends ApiTestCase
         $userB = User::create([
             'name' => 'Test Anggota B',
             'username' => 'test_anggota_b',
+            'email' => 'test_anggota_b@example.com',
             'password' => bcrypt('password123'),
             'role' => 'anggota',
         ]);

@@ -15,6 +15,7 @@ class DailyPickupTest extends ApiTestCase
         return User::create([
             'name' => 'Petugas '.$username,
             'username' => $username,
+            'email' => "{$username}@example.com",
             'password' => bcrypt('password123'),
             'role' => 'petugas',
         ]);
@@ -67,6 +68,7 @@ class DailyPickupTest extends ApiTestCase
         $pengurus = User::create([
             'name' => 'Pengurus Pembuat',
             'username' => 'pengurus_pembuat',
+            'email' => 'pengurus_pembuat@example.com',
             'password' => bcrypt('password123'),
             'role' => 'pengurus',
         ]);
@@ -74,6 +76,7 @@ class DailyPickupTest extends ApiTestCase
         $this->actingAs($pengurus)->postJson('/api/v1/users', [
             'name' => 'Anggota Dua Lokasi',
             'username' => 'anggota_dua_lokasi',
+            'email' => 'anggota_dua_lokasi@example.com',
             'password' => 'password123',
             'role' => 'anggota',
             'member_types' => ['rumah', 'pasar'],
@@ -104,6 +107,7 @@ class DailyPickupTest extends ApiTestCase
         $pengurus = User::create([
             'name' => 'Pengurus Pembuat',
             'username' => 'pengurus_pembuat',
+            'email' => 'pengurus_pembuat@example.com',
             'password' => bcrypt('password123'),
             'role' => 'pengurus',
         ]);
@@ -111,6 +115,7 @@ class DailyPickupTest extends ApiTestCase
         $this->actingAs($pengurus)->postJson('/api/v1/users', [
             'name' => 'Anggota Pasar Saja',
             'username' => 'anggota_pasar_saja',
+            'email' => 'anggota_pasar_saja@example.com',
             'password' => 'password123',
             'role' => 'anggota',
             'member_types' => ['pasar'],
@@ -139,6 +144,7 @@ class DailyPickupTest extends ApiTestCase
         $pengurus = User::create([
             'name' => 'Pengurus Pembuat',
             'username' => 'pengurus_pembuat',
+            'email' => 'pengurus_pembuat@example.com',
             'password' => bcrypt('password123'),
             'role' => 'pengurus',
         ]);
@@ -146,6 +152,7 @@ class DailyPickupTest extends ApiTestCase
         $this->actingAs($pengurus)->postJson('/api/v1/users', [
             'name' => 'Petugas Baru',
             'username' => 'petugas_baru',
+            'email' => 'petugas_baru@example.com',
             'password' => 'password123',
             'role' => 'petugas',
         ])->assertStatus(201);

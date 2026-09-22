@@ -15,6 +15,7 @@ class MemberPlottingTest extends ApiTestCase
         $user = User::create([
             'name' => 'Petugas '.$username,
             'username' => $username,
+            'email' => "{$username}@example.com",
             'password' => bcrypt('password123'),
             'role' => 'petugas',
         ]);
@@ -31,6 +32,7 @@ class MemberPlottingTest extends ApiTestCase
         return User::create([
             'name' => 'Calon '.$username,
             'username' => $username,
+            'email' => "{$username}@example.com",
             'password' => bcrypt('password123'),
             'role' => 'anggota',
         ]);
@@ -78,6 +80,7 @@ class MemberPlottingTest extends ApiTestCase
             ->postJson('/api/v1/users', [
                 'name' => 'Anggota Baru',
                 'username' => 'anggota_baru',
+                'email' => 'anggota_baru@example.com',
                 'password' => 'password123',
                 'role' => 'anggota',
                 'member_types' => ['rumah'],

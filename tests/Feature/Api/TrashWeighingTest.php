@@ -170,6 +170,7 @@ class TrashWeighingTest extends ApiTestCase
         $response = $this->actingAs($pengurus)->postJson('/api/v1/users', [
             'name' => 'Anggota Pasar',
             'username' => 'anggota_pasar',
+            'email' => 'pasar@example.com',
             'password' => 'password123',
             'role' => 'anggota',
             'member_types' => ['rumah', 'pasar'],
@@ -187,6 +188,7 @@ class TrashWeighingTest extends ApiTestCase
         $this->actingAs($pengurus)->postJson('/api/v1/users', [
             'name' => 'Anggota X',
             'username' => 'anggota_x',
+            'email' => 'x@example.com',
             'password' => 'password123',
             'role' => 'anggota',
         ])->assertStatus(422);
