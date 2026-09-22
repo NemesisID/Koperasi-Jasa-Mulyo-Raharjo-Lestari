@@ -59,6 +59,126 @@ class DailyPickupTest extends ApiTestCase
     }
 
     #[Test]
+    public function creating_anggota_account_autogenerates_one_ticket_per_category(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'rumah']);
+        MemberCategory::create(['name' => 'pasar']);
+        $pengurus = User::create([
+            'name' => 'Pengurus Pembuat',
+            'username' => 'pengurus_pembuat',
+            'password' => bcrypt('password123'),
+            'role' => 'pengurus',
+        ]);
+
+        $this->actingAs($pengurus)->postJson('/api/v1/users', [
+            'name' => 'Anggota Dua Lokasi',
+            'username' => 'anggota_dua_lokasi',
+            'password' => 'password123',
+            'role' => 'anggota',
+            'member_types' => ['rumah', 'pasar'],
+        ])->assertStatus(201);
+
+        $member = Member::where('name', 'Anggota Dua Lokasi')->firstOrFail();
+
+        // Dua kategori terpilih → dua tiket hari ini (rumah + pasar), langsung masuk antrean.
+        $this->assertSame(2, Pickup::where('member_id', $member->id)->count());
+        $this->assertDatabaseHas('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_rumah',
+            'status' => 'menunggu',
+        ]);
+        $this->assertDatabaseHas('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_pasar',
+            'status' => 'menunggu',
+        ]);
+    }
+
+    #[Test]
+    public function creating_anggota_with_single_category_creates_one_ticket(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'rumah']);
+        MemberCategory::create(['name' => 'pasar']);
+        $pengurus = User::create([
+            'name' => 'Pengurus Pembuat',
+            'username' => 'pengurus_pembuat',
+            'password' => bcrypt('password123'),
+            'role' => 'pengurus',
+        ]);
+
+        $this->actingAs($pengurus)->postJson('/api/v1/users', [
+            'name' => 'Anggota Pasar Saja',
+            'username' => 'anggota_pasar_saja',
+            'password' => 'password123',
+            'role' => 'anggota',
+            'member_types' => ['pasar'],
+        ])->assertStatus(201);
+
+        $member = Member::where('name', 'Anggota Pasar Saja')->firstOrFail();
+
+        // Satu kategori → satu tiket, lokasinya mengikuti kategori terpilih.
+        $this->assertSame(1, Pickup::where('member_id', $member->id)->count());
+        $this->assertDatabaseHas('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_pasar',
+            'status' => 'menunggu',
+        ]);
+        $this->assertDatabaseMissing('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_rumah',
+        ]);
+    }
+
+    #[Test]
+    public function creating_internal_account_creates_no_pickup_tickets(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'rumah']);
+        $pengurus = User::create([
+            'name' => 'Pengurus Pembuat',
+            'username' => 'pengurus_pembuat',
+            'password' => bcrypt('password123'),
+            'role' => 'pengurus',
+        ]);
+
+        $this->actingAs($pengurus)->postJson('/api/v1/users', [
+            'name' => 'Petugas Baru',
+            'username' => 'petugas_baru',
+            'password' => 'password123',
+            'role' => 'petugas',
+        ])->assertStatus(201);
+
+        // Akun internal (petugas/pengurus) tidak punya kategori → tanpa tiket penjemputan.
+        $this->assertSame(0, Pickup::count());
+    }
+
+    #[Test]
+    public function daily_command_creates_one_ticket_per_category_for_dual_member(): void
+    {
+        $this->seedCore();
+        MemberCategory::create(['name' => 'pasar']);
+        [, $member] = $this->makeUserWithMember('anggota');
+        $member->update(['categories' => ['rumah', 'pasar']]);
+
+        $this->artisan('pickups:generate-daily')->assertSuccessful();
+
+        // Anggota dual-status dapat dua tiket harian: satu rute rumah, satu rute pasar.
+        $this->assertSame(2, Pickup::where('member_id', $member->id)->count());
+        $this->assertDatabaseHas('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_rumah',
+            'status' => 'menunggu',
+        ]);
+        $this->assertDatabaseHas('pickups', [
+            'member_id' => $member->id,
+            'location_type' => 'jemput_pasar',
+            'status' => 'menunggu',
+        ]);
+    }
+
+    #[Test]
     public function running_twice_does_not_duplicate_tickets_for_the_same_day(): void
     {
         $this->seedCore();

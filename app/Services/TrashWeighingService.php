@@ -79,26 +79,41 @@ class TrashWeighingService
     }
 
     /**
-     * Tiket penjemputan harian untuk satu alamat anggota (dipakai scheduler).
+     * Tiket penjemputan harian untuk satu anggota (dipakai scheduler & saat
+     * akun anggota dibuat): satu tiket per kategori alamat — rumah →
+     * jemput_rumah, pasar → jemput_pasar. Anggota dual-status (rumah+pasar)
+     * dapat dua tiket dalam sehari.
      *
      * Petugas mengikuti plotting anggota. Anggota tanpa plotting tetap dapat
      * tiket (officer_id null) supaya pengurus bisa menugaskan manual — bukan
      * hilang dari daftar harian.
+     *
+     * @return list<Pickup>
      */
-    public function createDailyTicket(Member $member, string $date): Pickup
+    public function createDailyTickets(Member $member, string $date, string $notes = 'Jadwal harian otomatis'): array
     {
-        // Kategori anggota = jenis alamat (rumah/pasar), jadi sekaligus penentu lokasi jemput.
-        $locationType = $member->category?->name === 'pasar' ? 'jemput_pasar' : 'jemput_rumah';
+        $types = $member->categories ?: [$member->category?->name ?? 'rumah'];
 
-        return $this->pickupRepository->createHeader([
-            'member_id' => $member->id,
-            'officer_id' => $member->officer_id,
-            'location_type' => $locationType,
-            'is_sorted' => false,
-            'scheduled_at' => $date.' 07:00:00',
-            'notes' => 'Jadwal harian otomatis',
-            'status' => 'menunggu',
-        ]);
+        // Satu tiket per lokasi unik; kategori di luar rumah/pasar memakai rute rumah.
+        $locations = array_values(array_unique(array_map(
+            fn (string $type): string => $type === 'pasar' ? 'jemput_pasar' : 'jemput_rumah',
+            array_map(strval(...), $types),
+        )));
+
+        $tickets = [];
+        foreach ($locations as $locationType) {
+            $tickets[] = $this->pickupRepository->createHeader([
+                'member_id' => $member->id,
+                'officer_id' => $member->officer_id,
+                'location_type' => $locationType,
+                'is_sorted' => false,
+                'scheduled_at' => $date.' 07:00:00',
+                'notes' => $notes,
+                'status' => 'menunggu',
+            ]);
+        }
+
+        return $tickets;
     }
 
     /**

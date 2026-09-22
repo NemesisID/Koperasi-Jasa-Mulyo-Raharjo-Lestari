@@ -10,12 +10,13 @@ use Illuminate\Console\Command;
 /**
  * Tiket penjemputan harian otomatis untuk semua anggota aktif.
  *
- * Satu baris `members` = satu alamat (rumah/pasar), jadi anggota dengan dua
- * tempat dapat dua tiket per hari. Petugasnya mengikuti plotting anggota
- * (members.officer_id), bukan dipilih ulang di sini.
+ * Jumlah tiket mengikuti kategori anggota (kolom json `categories`): satu
+ * tiket per alamat — rumah → jemput_rumah, pasar → jemput_pasar — jadi
+ * anggota dual-status dapat dua tiket per hari. Petugasnya mengikuti
+ * plotting anggota (members.officer_id), bukan dipilih ulang di sini.
  *
  * Dijadwalkan pagi (lihat routes/console.php). Aman dijalankan berulang:
- * alamat yang sudah punya tiket di tanggal itu dilewati.
+ * anggota yang sudah punya tiket di tanggal itu dilewati.
  */
 class GenerateDailyPickups extends Command
 {
@@ -33,7 +34,7 @@ class GenerateDailyPickups extends Command
             ->with('category:id,name')
             ->chunkById(200, function ($members) use ($date, $weighingService, &$created, &$skipped): void {
                 foreach ($members as $member) {
-                    // Alamat ini sudah punya tiket hari ini (termasuk permintaan
+                    // Anggota ini sudah punya tiket hari ini (termasuk permintaan
                     // manual dari anggota) → jangan dobel.
                     $exists = Pickup::where('member_id', $member->id)
                         ->whereDate('scheduled_at', $date)
@@ -45,8 +46,7 @@ class GenerateDailyPickups extends Command
                         continue;
                     }
 
-                    $weighingService->createDailyTicket($member, $date);
-                    $created++;
+                    $created += count($weighingService->createDailyTickets($member, $date));
                 }
             });
 

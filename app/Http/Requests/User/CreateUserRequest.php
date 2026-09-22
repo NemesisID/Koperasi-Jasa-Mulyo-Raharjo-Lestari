@@ -21,6 +21,7 @@ class CreateUserRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'min:3', 'max:50', 'unique:users,username'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', Password::min(8)],
             'role' => ['required', Rule::in(['pengurus', 'petugas', 'anggota'])],
             'member_types' => ['required_if:role,anggota', 'nullable', 'array', 'min:1'],

@@ -8,9 +8,11 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class UserRepository implements UserRepositoryInterface
 {
-    public function findByUsername(string $username): ?User
+      public function findByEmailOrUsername(string $identity): ?User
     {
-        return User::where('username', $username)->first();
+        return User::where('email', $identity)
+            ->orWhere('username', $identity)
+            ->first();
     }
 
     public function paginate(array $filters): LengthAwarePaginator
@@ -21,7 +23,8 @@ class UserRepository implements UserRepositoryInterface
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(fn ($q) => $q
                     ->where('name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%"));
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%"));
             })
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 15);

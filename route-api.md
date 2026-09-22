@@ -28,8 +28,8 @@
 
 | Method | Endpoint | Role Akses | Deskripsi & Payload Kunci | Response / Status |
 |:---:|---|:---:|---|:---:|
-| `POST` | `/auth/login` | Public | **Body:** `{ "identity": "username_atau_email", "password": "xxx", "device_name": "react_spa" }`<br>Autentikasi & return Sanctum token. | `200 OK`<br>`token`, `user`, `role` |
-| `POST` | `/auth/register-member` | Public | **Body:** `{ "name", "email", "username", "password", "phone", "address", "nik" }`<br>Registrasi mandiri calon anggota (status awal pending simpanan pokok). | `201 Created`<br>`user`, `member` |
+| `POST` | `/auth/login` | Public | **Body:** `{ "identity": "username", "password": "xxx", "device_name": "react_spa" }`<br>Autentikasi & return Sanctum token. | `200 OK`<br>`token`, `user`, `role` |
+| `POST` | `/auth/register-member` | Public | **Body:** `{ "name", "username", "password", "phone", "address" }`<br>Registrasi mandiri calon anggota (status awal pending simpanan pokok). | `201 Created`<br>`user`, `member` |
 | `GET` | `/auth/me` | All Authenticated | Ambil profil pengguna yang sedang login beserta data role & identitas member. | `200 OK`<br>`user`, `member_profile` |
 | `PUT` | `/auth/profile` | All Authenticated | **Body:** `{ "name", "phone", "address", "avatar" }`<br>Pembaruan informasi kontak profil mandiri. | `200 OK`<br>`user` |
 | `PUT` | `/auth/change-password` | All Authenticated | **Body:** `{ "current_password", "new_password", "new_password_confirmation" }` | `200 OK` |
@@ -42,9 +42,9 @@
 | Method | Endpoint | Role Akses | Deskripsi & Payload Kunci | Response / Status |
 |:---:|---|:---:|---|:---:|
 | `GET` | `/users` | Ketua, Pengurus | Ambil daftar pengguna sistem. Filter: `?role=petugas&search=budi&page=1`. | `200 OK` (Paginated) |
-| `POST` | `/users` | Ketua | **Body:** `{ "name", "username", "email", "password", "role", "address" }`<br>Buat akun internal (Pengurus/Petugas). | `201 Created` |
+| `POST` | `/users` | Ketua | **Body:** `{ "name", "username", "password", "role", "address" }`<br>Buat akun internal (Pengurus/Petugas). | `201 Created` |
 | `GET` | `/users/{id}` | Ketua, Pengurus | Detail informasi akun pengguna. | `200 OK` |
-| `PUT` | `/users/{id}` | Ketua | **Body:** `{ "name", "email", "role", "address", "is_active" }`<br>Update data akun pengguna internal. | `200 OK` |
+| `PUT` | `/users/{id}` | Ketua | **Body:** `{ "name", "username", "role", "address" }`<br>Update data akun pengguna internal. | `200 OK` |
 | `DELETE` | `/users/{id}` | Ketua | Nonaktifkan / hapus akun pengguna sistem. | `200 OK` |
 
 ---

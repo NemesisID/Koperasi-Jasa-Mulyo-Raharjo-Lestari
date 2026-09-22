@@ -25,7 +25,7 @@
       "post": {
         "tags": ["Auth"],
         "summary": "Login",
-        "description": "Autentikasi dengan username/email + password, mengembalikan Sanctum token. Rate limit 10x/menit.\n\n**Tidak ada registrasi mandiri.** Akun hanya dibuat pengurus lewat `POST /users`.",
+        "description": "Autentikasi dengan username + password, mengembalikan Sanctum token. Rate limit 10x/menit.\n\n**Tidak ada registrasi mandiri.** Akun hanya dibuat pengurus lewat `POST /users`.",
         "security": [],
         "requestBody": {
           "required": true,
@@ -107,7 +107,7 @@
         "description": "Daftar pengguna sistem. Role: `pengurus`.",
         "parameters": [
           { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["pengurus", "petugas", "anggota"] }, "description": "Filter role" },
-          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Cari nama/username/email" },
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Cari nama/username" },
           { "name": "per_page", "in": "query", "schema": { "type": "integer", "default": 15 } },
           { "name": "page", "in": "query", "schema": { "type": "integer" } }
         ],
@@ -1205,7 +1205,7 @@
         "type": "object",
         "required": ["identity", "password"],
         "properties": {
-          "identity": { "type": "string", "maxLength": 255, "description": "Username atau email", "example": "budi" },
+          "identity": { "type": "string", "maxLength": 255, "description": "Username", "example": "budi" },
           "password": { "type": "string", "format": "password" },
           "device_name": { "type": "string", "maxLength": 100, "default": "api-client", "example": "react_spa" }
         }
@@ -1231,11 +1231,10 @@
 
       "UserStoreRequest": {
         "type": "object",
-        "required": ["name", "username", "email", "password", "role"],
+        "required": ["name", "username", "password", "role"],
         "properties": {
           "name": { "type": "string", "maxLength": 255 },
           "username": { "type": "string", "minLength": 3, "maxLength": 50, "description": "Unik" },
-          "email": { "type": "string", "format": "email", "maxLength": 255, "description": "Unik" },
           "password": { "type": "string", "format": "password", "minLength": 8 },
           "role": { "$ref": "#/components/schemas/Role" },
           "member_types": {
@@ -1252,11 +1251,10 @@
       },
       "UserUpdateRequest": {
         "type": "object",
-        "required": ["name", "username", "email", "role"],
+        "required": ["name", "username", "role"],
         "properties": {
           "name": { "type": "string", "maxLength": 255 },
           "username": { "type": "string", "minLength": 3, "maxLength": 50 },
-          "email": { "type": "string", "format": "email", "maxLength": 255 },
           "password": { "type": "string", "format": "password", "minLength": 8, "nullable": true, "description": "Kosongkan bila tidak diganti" },
           "role": { "$ref": "#/components/schemas/Role" },
           "member_types": { "type": "array", "minItems": 1, "items": { "type": "string", "enum": ["rumah", "pasar"] }, "description": "Wajib bila `role=anggota`" },
