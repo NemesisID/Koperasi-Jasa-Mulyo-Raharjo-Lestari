@@ -92,6 +92,11 @@ class TrashWeighingService
      */
     public function createDailyTickets(Member $member, string $date, string $notes = 'Jadwal harian otomatis'): array
     {
+        // Anggota nonaktif tidak dijemput — scheduler juga menyaringnya di query.
+        if ($member->status !== 'aktif') {
+            return [];
+        }
+
         $types = $member->categories ?: [$member->category?->name ?? 'rumah'];
 
         // Satu tiket per lokasi unik; kategori di luar rumah/pasar memakai rute rumah.

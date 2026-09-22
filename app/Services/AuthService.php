@@ -17,6 +17,7 @@ class AuthService
         private readonly UserRepositoryInterface $userRepository,
         private readonly MemberRepositoryInterface $memberRepository,
         private readonly SavingsService $savingsService,
+        private readonly TrashWeighingService $weighingService,
     ) {}
 
     /**
@@ -86,6 +87,10 @@ class AuthService
             // Simpanan pokok Rp50.000 per kategori member otomatis saat akun anggota dibuat.
             // Petugas jurnal = pengurus yang login (creator), bukan anggota yang didaftarkan (issue #1).
             $this->savingsService->recordInitialPokok($member, $creator);
+
+            // Tiket penjemputan hari ini: satu per kategori alamat (rumah/pasar),
+            // jadi anggota dual-status langsung dapat dua tiket di antrean petugas.
+            $this->weighingService->createDailyTickets($member, now()->toDateString());
 
             return [$user, $member];
         });

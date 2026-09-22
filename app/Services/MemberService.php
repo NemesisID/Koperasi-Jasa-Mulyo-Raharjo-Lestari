@@ -12,6 +12,7 @@ class MemberService
     public function __construct(
         private readonly MemberRepositoryInterface $memberRepository,
         private readonly SavingsService $savingsService,
+        private readonly TrashWeighingService $weighingService,
     ) {}
 
     public function getMembersPaginated(array $filters): LengthAwarePaginator
@@ -34,6 +35,9 @@ class MemberService
 
         // Simpanan pokok Rp50.000 per kategori member otomatis untuk anggota baru.
         $this->savingsService->recordInitialPokok($member, $handler);
+
+        // Tiket penjemputan hari ini: satu per kategori alamat (rumah/pasar).
+        $this->weighingService->createDailyTickets($member, now()->toDateString());
 
         return $member;
     }
