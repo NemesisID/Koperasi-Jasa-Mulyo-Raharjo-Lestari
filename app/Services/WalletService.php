@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\BusinessLogicException;
 use App\Models\Complaint;
+use App\Models\Member;
 use App\Models\Pickup;
 use App\Models\SetoranKoperasi;
 use App\Models\ShuMember;
@@ -123,7 +124,9 @@ class WalletService
             ]));
 
         // Potongan tagihan rutin dari saldo (hold bulanan #15).
-        SetoranKoperasi::where('user_id', $member->user_id)
+        // getMemberMutations menerima member_id — resolve user_id-nya dulu.
+        $userId = Member::whereKey($memberId)->value('user_id');
+        SetoranKoperasi::where('user_id', $userId)
             ->where('jenis', 'PEMASUKAN')->where('status', 'SELESAI')->where('sumber', 'saldo')
             ->orderByDesc('created_at')->get()
             ->each(fn (SetoranKoperasi $s) => $mutations->push([
