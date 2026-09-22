@@ -43,7 +43,6 @@ abstract class ApiTestCase extends TestCase
         $user = User::create([
             'name' => 'Test '.ucfirst($role),
             'username' => 'test_'.$role,
-            'email' => "test_{$role}@example.com",
             'password' => bcrypt('password123'),
             'role' => $role,
         ]);

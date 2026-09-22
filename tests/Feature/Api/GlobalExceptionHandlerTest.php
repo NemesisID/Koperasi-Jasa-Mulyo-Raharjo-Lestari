@@ -37,7 +37,7 @@ class GlobalExceptionHandlerTest extends ApiTestCase
         // Petugas tidak boleh create user
         $this->actingAs($petugas)
             ->postJson('/api/v1/users', [
-                'name' => 'X', 'username' => 'x', 'email' => 'x@example.com',
+                'name' => 'X', 'username' => 'x',
                 'password' => 'password123', 'role' => 'petugas',
             ])
             ->assertStatus(403)

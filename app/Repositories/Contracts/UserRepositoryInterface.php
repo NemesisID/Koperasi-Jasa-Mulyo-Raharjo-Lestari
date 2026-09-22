@@ -8,12 +8,12 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface UserRepositoryInterface
 {
     /**
-     * Cari user berdasarkan email ATAU username (untuk login identity).
+     * Cari user berdasarkan username (untuk login identity).
      */
-    public function findByEmailOrUsername(string $identity): ?User;
+    public function findByUsername(string $username): ?User;
 
     /**
-     * Daftar user terpaginasi dengan filter (role, pencarian nama/username/email).
+     * Daftar user terpaginasi dengan filter (role, pencarian nama/username).
      */
     public function paginate(array $filters): LengthAwarePaginator;
 

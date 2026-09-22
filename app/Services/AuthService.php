@@ -20,18 +20,18 @@ class AuthService
     ) {}
 
     /**
-     * Autentikasi user via email/username dan terbitkan Sanctum token.
+     * Autentikasi user via username dan terbitkan Sanctum token.
      *
      * @param  array{identity: string, password: string}  $credentials
      * @return array{token: string, user: User}
      */
     public function authenticate(array $credentials, string $deviceName): array
     {
-        $user = $this->userRepository->findByEmailOrUsername($credentials['identity']);
+        $user = $this->userRepository->findByUsername($credentials['identity']);
 
         if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'identity' => 'Email/username atau password salah.',
+                'identity' => 'Username atau password salah.',
             ]);
         }
 
@@ -55,7 +55,6 @@ class AuthService
             $user = $this->userRepository->create([
                 'name' => $data['name'],
                 'username' => $data['username'],
-                'email' => $data['email'],
                 'password' => $data['password'],
                 'role' => 'anggota',
                 'phone' => $data['phone'] ?? null,

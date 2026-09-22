@@ -26,9 +26,8 @@ alter table `failed_jobs` add unique `failed_jobs_uuid_unique`(`uuid`);
 -- ------------------------------------------
 -- Migration: 2026_08_23_000001_create_users_table.php
 -- ------------------------------------------
-create table `users` (`id` bigint unsigned not null auto_increment primary key, `name` varchar(255) not null, `username` varchar(255) not null, `email` varchar(255) not null, `email_verified_at` timestamp null, `password` varchar(255) not null, `role` enum('ketua', 'pengurus', 'petugas', 'anggota') not null, `address` text null, `remember_token` varchar(100) null, `created_at` timestamp null, `updated_at` timestamp null);
+create table `users` (`id` bigint unsigned not null auto_increment primary key, `name` varchar(255) not null, `username` varchar(255) not null, `password` varchar(255) not null, `role` enum('pengurus', 'petugas', 'anggota') not null, `phone` varchar(20) null, `address` text null, `remember_token` varchar(100) null, `created_at` timestamp null, `updated_at` timestamp null);
 alter table `users` add unique `users_username_unique`(`username`);
-alter table `users` add unique `users_email_unique`(`email`);
 
 -- ------------------------------------------
 -- Migration: 2026_08_24_000001_create_setoran_koperasi_table.php

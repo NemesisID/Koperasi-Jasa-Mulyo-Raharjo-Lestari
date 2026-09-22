@@ -43,7 +43,6 @@ class DatabaseSeeder extends Seeder
         $admin = User::create([
             'name' => 'Ketua Koperasi',
             'username' => 'ketua',
-            'email' => 'ketua@koperasimulyoraharjo.com',
             'password' => Hash::make('password123'),
             'role' => 'pengurus',
             'address' => 'Kantor Pusat Koperasi Mulyo Raharjo',
@@ -52,7 +51,6 @@ class DatabaseSeeder extends Seeder
         $pengurus = User::create([
             'name' => 'Bendahara Koperasi',
             'username' => 'bendahara',
-            'email' => 'bendahara@koperasimulyoraharjo.com',
             'password' => Hash::make('password123'),
             'role' => 'pengurus',
             'address' => 'Kantor Kas Koperasi Mulyo Raharjo',
@@ -61,7 +59,6 @@ class DatabaseSeeder extends Seeder
         $petugas = User::create([
             'name' => 'Budi Petugas Lapangan',
             'username' => 'petugas',
-            'email' => 'petugas@koperasimulyoraharjo.com',
             'password' => Hash::make('password123'),
             'role' => 'petugas',
             'address' => 'Gudang Logistik Unit 1',
@@ -70,7 +67,6 @@ class DatabaseSeeder extends Seeder
         $userWarga = User::create([
             'name' => 'Siti Warga Lestari',
             'username' => 'warga',
-            'email' => 'warga@koperasimulyoraharjo.com',
             'password' => Hash::make('password123'),
             'role' => 'anggota',
             'address' => 'RT 02 RW 01 Dusun Mulyo',

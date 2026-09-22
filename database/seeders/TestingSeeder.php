@@ -45,7 +45,6 @@ class TestingSeeder extends Seeder
             $user = User::create([
                 'name' => $a['name'],
                 'username' => $a['username'],
-                'email' => $a['username'].'@koperasimulyoraharjo.com',
                 'password' => Hash::make('password123'),
                 'role' => 'anggota',
                 'address' => 'Dusun Mulyo RT 0'.rand(1, 5).' RW 01',

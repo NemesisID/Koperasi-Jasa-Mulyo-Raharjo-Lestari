@@ -15,7 +15,6 @@ class DailyPickupTest extends ApiTestCase
         return User::create([
             'name' => 'Petugas '.$username,
             'username' => $username,
-            'email' => "{$username}@example.com",
             'password' => bcrypt('password123'),
             'role' => 'petugas',
         ]);
