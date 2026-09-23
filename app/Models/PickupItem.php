@@ -17,6 +17,7 @@ class PickupItem extends Model
         'category_id',
         'weight_kg',
         'unit_count',
+        'price_per_unit',
         'total_value',
         'deposit_date',
         'transaction_id',
@@ -27,6 +28,7 @@ class PickupItem extends Model
         return [
             'weight_kg' => 'decimal:2',
             'unit_count' => 'integer',
+            'price_per_unit' => 'decimal:2',
             'total_value' => 'decimal:2',
             'deposit_date' => 'datetime',
         ];

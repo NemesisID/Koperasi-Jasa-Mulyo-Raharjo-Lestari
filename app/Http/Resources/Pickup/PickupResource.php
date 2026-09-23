@@ -43,8 +43,24 @@ class PickupResource extends JsonResource
                 'category' => $item->relationLoaded('category') ? $item->category?->only(['id', 'name', 'type', 'unit']) : null,
                 'weight_kg' => $item->weight_kg,
                 'unit_count' => $item->unit_count,
+                'price_per_unit' => $item->price_per_unit,
                 'total_value' => $item->total_value,
             ])),
+            'receipt' => $this->whenLoaded('receipt', fn () => $this->receipt ? [
+                'id' => $this->receipt->id,
+                'receipt_number' => $this->receipt->receipt_number,
+                'member_name' => $this->receipt->member_name,
+                'member_code' => $this->receipt->member_code,
+                'officer_name' => $this->receipt->officer_name,
+                'location_type' => $this->receipt->location_type,
+                'location_label' => $this->receipt->location_label,
+                'items' => $this->receipt->items_payload,
+                'nota_data' => $this->receipt->nota_data,
+                'total_gross' => (float) $this->receipt->total_gross,
+                'total_fee' => (float) $this->receipt->total_fee,
+                'total_net' => (float) $this->receipt->total_net,
+                'issued_at' => $this->receipt->issued_at?->toIso8601String(),
+            ] : null),
         ];
     }
 }

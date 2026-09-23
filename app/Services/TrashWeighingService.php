@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Exceptions\BusinessLogicException;
 use App\Models\Member;
 use App\Models\Pickup;
+use App\Models\Receipt;
 use App\Models\TrashCategory;
 use App\Models\User;
 use App\Repositories\Contracts\MemberRepositoryInterface;
@@ -145,6 +146,7 @@ class TrashWeighingService
             }
 
             $itemRows = [];
+            $receiptItems = [];
             $totalGross = 0.0;
 
             foreach ($items as $item) {
@@ -172,7 +174,18 @@ class TrashWeighingService
                     'category_id' => $category->id,
                     'weight_kg' => $category->unit === 'kg' ? $quantity : 0,
                     'unit_count' => $category->unit === 'kg' ? 0 : (int) $quantity,
+                    'price_per_unit' => $unitPrice,
                     'total_value' => $lineValue,
+                ];
+
+                $receiptItems[] = [
+                    'category_id' => $category->id,
+                    'name' => $category->name,
+                    'type' => $category->type,
+                    'unit' => $category->unit,
+                    'weight' => $quantity,
+                    'price' => $unitPrice,
+                    'total' => $lineValue,
                 ];
             }
 
@@ -200,6 +213,56 @@ class TrashWeighingService
 
             $this->pickupRepository->addItemsAndComplete($pickup, $itemRows, $purchaseTransaction, $totalGross, 0.0, $totalNet, $officer);
 
+            // Simpan data nota digital ke tabel receipts tersendiri (frozen object)
+            $receiptCode = $purchaseTransaction->transaction_code
+                ?? ('NOTA-' . date('Ymd') . '-' . str_pad($pickup->id, 5, '0', STR_PAD_LEFT));
+
+            $locationLabel = match ($pickup->location_type) {
+                'jemput_rumah' => 'Dijemput di Rumah',
+                'jemput_pasar' => 'Dijemput di Pasar',
+                default => 'Diantar ke Gudang',
+            };
+
+            $member = $pickup->member;
+            $notaData = [
+                'receipt_number' => $receiptCode,
+                'issued_at' => now()->toIso8601String(),
+                'member' => [
+                    'id' => $pickup->member_id,
+                    'name' => $member?->name ?? 'Anggota',
+                    'code' => $member?->member_code ?? '-',
+                ],
+                'officer' => [
+                    'id' => $officer->id,
+                    'name' => $officer->name,
+                ],
+                'location' => $locationLabel,
+                'items' => $receiptItems,
+                'total_gross' => $totalGross,
+                'total_fee' => 0.0,
+                'total_net' => $totalNet,
+            ];
+
+            Receipt::updateOrCreate(
+                ['pickup_id' => $pickup->id],
+                [
+                    'receipt_number' => $receiptCode,
+                    'member_id' => $pickup->member_id,
+                    'officer_id' => $officer->id,
+                    'member_name' => $member?->name ?? 'Anggota',
+                    'member_code' => $member?->member_code ?? '-',
+                    'officer_name' => $officer->name,
+                    'location_type' => $pickup->location_type ?? 'gudang',
+                    'location_label' => $locationLabel,
+                    'items_payload' => $receiptItems,
+                    'nota_data' => $notaData,
+                    'total_gross' => $totalGross,
+                    'total_fee' => 0.0,
+                    'total_net' => $totalNet,
+                    'issued_at' => now(),
+                ]
+            );
+
             return $this->pickupRepository->findByIdWithDetails($pickup->id);
         });
     }
@@ -222,6 +285,9 @@ class TrashWeighingService
 
             // Rollback jurnal kas lama (fee 20% + beli sampah anggota)
             $this->rollbackWeighJournal($pickup);
+
+            // Hapus snapshot nota digital saat transaksi timbang dibatalkan
+            Receipt::where('pickup_id', $pickup->id)->delete();
 
             $this->pickupRepository->cancel($pickup, $reason);
 

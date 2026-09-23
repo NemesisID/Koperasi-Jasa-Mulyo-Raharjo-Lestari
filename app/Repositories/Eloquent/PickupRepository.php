@@ -15,7 +15,7 @@ class PickupRepository implements PickupRepositoryInterface
     public function paginate(array $filters): LengthAwarePaginator
     {
         return Pickup::query()
-            ->with('member:id,member_code,name,address,address_rumah,address_pasar,phone', 'officer:id,name')
+            ->with('member:id,member_code,name,address,address_rumah,address_pasar,phone', 'officer:id,name', 'receipt')
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['member_id'] ?? null, fn ($query, $memberId) => $query->where('member_id', $memberId))
             ->when($filters['officer_id'] ?? null, fn ($query, $officerId) => $query->where('officer_id', $officerId))
@@ -58,6 +58,7 @@ class PickupRepository implements PickupRepositoryInterface
             'officer:id,name',
             'items.category:id,name,type,unit,price_sorted,price_unsorted',
             'items.transaction:id,transaction_code',
+            'receipt',
         )->findOrFail($id);
     }
 

@@ -133,8 +133,14 @@ class PickupController extends Controller
             'message' => 'Penimbangan selesai. Saldo bersih telah dikreditkan ke anggota.',
             'data' => [
                 'pickup' => new PickupResource($pickup),
+                'receipt' => $pickup->receipt ? [
+                    'id' => $pickup->receipt->id,
+                    'receipt_number' => $pickup->receipt->receipt_number,
+                    'items' => $pickup->receipt->items_payload,
+                    'nota_data' => $pickup->receipt->nota_data,
+                ] : null,
                 'net_earned' => $pickup->total_net,
-                'receipt_number' => $pickup->items->first()?->transaction?->transaction_code,
+                'receipt_number' => $pickup->receipt?->receipt_number ?? $pickup->items->first()?->transaction?->transaction_code,
             ],
         ]);
     }
@@ -161,11 +167,12 @@ class PickupController extends Controller
     {
         $pickup = $this->weighingService->getPickup($id);
         $this->authorizeMemberAccess($request, $pickup);
+        $pickup->loadMissing(['receipt', 'member', 'officer', 'items.category', 'items.transaction']);
 
         return response()->json([
             'success' => true,
             'message' => 'Nota digital berhasil dimuat.',
-            'data' => new ReceiptResource($pickup),
+            'data' => new ReceiptResource($pickup->receipt ?? $pickup),
         ]);
     }
 
