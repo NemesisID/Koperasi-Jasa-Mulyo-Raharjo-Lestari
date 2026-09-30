@@ -68,8 +68,35 @@ class Member extends Model
         return $this->hasMany(ShuMember::class);
     }
 
+    public function complaints(): HasMany
+    {
+        return $this->hasMany(Complaint::class);
+    }
+
+    public function withdrawRequests(): HasMany
+    {
+        return $this->hasMany(WithdrawRequest::class);
+    }
+
+    public function setoranKoperasi(): \Illuminate\Database\Eloquent\Relations\HasManyThrough
+    {
+        return $this->hasManyThrough(SetoranKoperasi::class, User::class, 'id', 'user_id', 'user_id', 'id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', 'aktif');
+    }
+
+    public function getCurrentBalanceAttribute(): float
+    {
+        $walletService = app(\App\Services\WalletService::class);
+        return (float) ($walletService->getMemberWalletSummary($this->id)['current_balance'] ?? 0);
+    }
+
+    public function getAvailableBalanceAttribute(): float
+    {
+        $walletService = app(\App\Services\WalletService::class);
+        return (float) ($walletService->getMemberWalletSummary($this->id)['available_balance'] ?? 0);
     }
 }

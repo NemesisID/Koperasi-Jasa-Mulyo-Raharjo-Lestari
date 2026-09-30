@@ -27,6 +27,9 @@ class MemberResource extends JsonResource
             'category' => new MemberCategoryResource($this->whenLoaded('category')),
             // Ploting petugas: satu baris per anggota/alamat, jadi anggota dengan
             // 2 tempat muncul 2 kali dengan officer masing-masing.
+            'balance' => $this->available_balance,
+            'current_balance' => $this->current_balance,
+            'available_balance' => $this->available_balance,
             'officer' => $this->officer ? [
                 'id' => $this->officer->id,
                 'name' => $this->officer->name,

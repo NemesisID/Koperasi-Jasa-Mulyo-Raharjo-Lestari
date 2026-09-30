@@ -27,7 +27,7 @@ class WalletService
      */
     public function getMemberWalletSummary(int $memberId): array
     {
-        $member = \App\Models\Member::with('user:id,username')->findOrFail($memberId);
+        $member = \App\Models\Member::withTrashed()->with('user:id,username')->findOrFail($memberId);
 
         $fromTrash = (float) Pickup::where('member_id', $memberId)
             ->where('status', 'selesai')->sum('total_net');
