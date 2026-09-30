@@ -18,11 +18,11 @@ class UserController extends Controller
     ) {}
 
     /**
-     * GET /api/v1/users
+     * GET /api/v1/users — ?trashed=1 untuk daftar akun yang sudah diarsipkan.
      */
     public function index(Request $request): JsonResponse
     {
-        $paginator = $this->userService->getUsersPaginated($request->only(['role', 'search', 'per_page']));
+        $paginator = $this->userService->getUsersPaginated($request->only(['role', 'search', 'per_page', 'trashed']));
 
         return (new UserCollection($paginator))->response();
     }
@@ -68,7 +68,8 @@ class UserController extends Controller
     }
 
     /**
-     * DELETE /api/v1/users/{id}
+     * DELETE /api/v1/users/{id} — arsipkan akun, bukan hapus permanen
+     * (riwayat transaksi tetap merujuk user_id, akun bisa dipulihkan).
      */
     public function destroy(Request $request, int $id): JsonResponse
     {
@@ -76,8 +77,22 @@ class UserController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Akun pengguna berhasil dihapus.',
+            'message' => 'Akun pengguna berhasil diarsipkan. Riwayatnya tetap tersimpan dan dapat dipulihkan.',
             'data' => null,
+        ]);
+    }
+
+    /**
+     * PATCH /api/v1/users/{id}/restore
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $user = $this->userService->restoreUser($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Akun pengguna berhasil dipulihkan.',
+            'data' => new UserResource($user->load('member')),
         ]);
     }
 }

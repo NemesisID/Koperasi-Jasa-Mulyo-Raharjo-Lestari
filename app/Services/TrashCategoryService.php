@@ -101,6 +101,19 @@ class TrashCategoryService
         return $this->trashCategoryRepository->priceHistory($id);
     }
 
+    /**
+     * Arsipkan kategori (soft delete) — riwayat timbangan & audit harga tetap utuh.
+     */
+    public function deleteCategory(int $id): void
+    {
+        $this->trashCategoryRepository->delete($id);
+    }
+
+    public function restoreCategory(int $id): TrashCategory
+    {
+        return $this->trashCategoryRepository->restore($id);
+    }
+
     private function resolveTrend(TrashCategory $category): string
     {
         $log = $category->latestPriceChange;

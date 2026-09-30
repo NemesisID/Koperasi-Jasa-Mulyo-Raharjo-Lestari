@@ -68,4 +68,9 @@ class UserService
 
         $this->userRepository->delete($id);
     }
+
+    public function restoreUser(int $id): User
+    {
+        return $this->userRepository->restore($id);
+    }
 }

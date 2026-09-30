@@ -41,4 +41,14 @@ interface TrashCategoryRepositoryInterface
      * Riwayat audit perubahan harga sebuah kategori.
      */
     public function priceHistory(int $id): Collection;
+
+    /**
+     * Arsipkan kategori sampah (soft delete) — riwayat pickup tetap merujuk category_id.
+     */
+    public function delete(int $id): void;
+
+    /**
+     * Pulihkan kategori sampah yang sudah diarsipkan.
+     */
+    public function restore(int $id): TrashCategory;
 }

@@ -28,6 +28,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('sessions', function (Blueprint $table) {
@@ -113,6 +114,7 @@ return new class extends Migration
             $table->decimal('price_sell', 10, 2)->default(0);
             $table->boolean('is_active')->default(true);
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('finance_categories', function (Blueprint $table) {

@@ -13,6 +13,8 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
     public function getAll(array $filters = []): Collection
     {
         return TrashCategory::query()
+            // ?trashed=1 → daftar kategori yang sudah diarsipkan (soft delete).
+            ->when($filters['trashed'] ?? null, fn ($query) => $query->onlyTrashed())
             ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
             ->when(isset($filters['is_active']), fn ($query) => $query->where('is_active', (bool) $filters['is_active']))
             ->orderBy('name')
@@ -108,5 +110,20 @@ class TrashCategoryRepository implements TrashCategoryRepositoryInterface
             ->where('trash_category_id', $id)
             ->orderByDesc('id')
             ->get();
+    }
+
+    public function delete(int $id): void
+    {
+        // Arsip (soft delete): FK `pickup_items.category_id` memakai restrict,
+        // jadi item yang pernah ditimbang tidak boleh hilang — riwayat tetap utuh.
+        TrashCategory::findOrFail($id)->delete();
+    }
+
+    public function restore(int $id): TrashCategory
+    {
+        $category = TrashCategory::onlyTrashed()->findOrFail($id);
+        $category->restore();
+
+        return $category;
     }
 }

@@ -19,6 +19,8 @@ class UserRepository implements UserRepositoryInterface
     {
         return User::query()
             ->with('member')
+            // ?trashed=1 → daftar akun yang sudah diarsipkan (soft delete).
+            ->when($filters['trashed'] ?? null, fn ($query) => $query->onlyTrashed())
             ->when($filters['role'] ?? null, fn ($query, $role) => $query->where('role', $role))
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where(fn ($q) => $q
@@ -55,7 +57,16 @@ class UserRepository implements UserRepositoryInterface
 
     public function delete(int $id): void
     {
-        // ponytail: FK restrict DB menahan user berriwayat transaksi; guard self-delete ada di service.
+        // Arsip (soft delete): FK restrict DB menahan user berriwayat transaksi;
+        // riwayat tetap utuh dan akun bisa dipulihkan. Guard self-delete ada di service.
         User::findOrFail($id)->delete();
+    }
+
+    public function restore(int $id): User
+    {
+        $user = User::onlyTrashed()->findOrFail($id);
+        $user->restore();
+
+        return $user->fresh('member');
     }
 }

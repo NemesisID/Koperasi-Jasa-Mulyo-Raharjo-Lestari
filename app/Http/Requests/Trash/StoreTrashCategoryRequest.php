@@ -18,7 +18,7 @@ class StoreTrashCategoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:100', 'unique:trash_categories,name'],
+            'name' => ['required', 'string', 'max:100', Rule::unique('trash_categories', 'name')->whereNull('deleted_at')],
             'type' => ['required', Rule::in(['logam', 'besi', 'kertas', 'plastik', 'elektronik', 'organik', 'campur', 'lainnya'])],
             'unit' => ['required', Rule::in(['kg', 'biji', 'unit'])],
             'price_sorted' => ['nullable', 'numeric', 'min:0'],

@@ -12,7 +12,7 @@ class UpdateTrashCategoryRequest extends StoreTrashCategoryRequest
     public function rules(): array
     {
         $rules = parent::rules();
-        $rules['name'] = ['required', 'string', 'max:100', Rule::unique('trash_categories', 'name')->ignore($this->route('id'))];
+        $rules['name'] = ['required', 'string', 'max:100', Rule::unique('trash_categories', 'name')->ignore($this->route('id'))->whereNull('deleted_at')];
 
         return $rules;
     }

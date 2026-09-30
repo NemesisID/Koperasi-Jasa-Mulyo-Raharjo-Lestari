@@ -22,6 +22,7 @@ class TrashCategoryResource extends JsonResource
             'price_sell' => $this->price_sell,
             'price_member' => $this->price_member,
             'is_active' => $this->is_active,
+            'deleted_at' => $this->deleted_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }

@@ -38,7 +38,12 @@ interface UserRepositoryInterface
     public function findWithMember(int $id): User;
 
     /**
-     * Hapus record user.
+     * Hapus record user (arsip/soft delete — riwayat transaksi tetap merujuk user).
      */
     public function delete(int $id): void;
+
+    /**
+     * Pulihkan user yang sudah diarsipkan.
+     */
+    public function restore(int $id): User;
 }

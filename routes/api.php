@@ -45,7 +45,9 @@ Route::prefix('v1')->group(function () {
         Route::post('/', [UserController::class, 'store'])->middleware('role:pengurus');
         Route::get('/{id}', [UserController::class, 'show'])->middleware('role:pengurus');
         Route::put('/{id}', [UserController::class, 'update'])->middleware('role:pengurus');
+        // Arsip, bukan hapus permanen — riwayat transaksi tetap merujuk user_id.
         Route::delete('/{id}', [UserController::class, 'destroy'])->middleware('role:pengurus');
+        Route::patch('/{id}/restore', [UserController::class, 'restore'])->middleware('role:pengurus');
     });
 
     // Master data keanggotaan
@@ -78,6 +80,9 @@ Route::prefix('v1')->group(function () {
         Route::put('/{id}', [TrashCategoryController::class, 'update'])->middleware(['auth:sanctum', 'role:pengurus']);
         Route::patch('/{id}/price', [TrashCategoryController::class, 'updatePrice'])->middleware(['auth:sanctum', 'role:pengurus']);
         Route::get('/{id}/price-history', [TrashCategoryController::class, 'priceHistory'])->middleware(['auth:sanctum', 'role:pengurus']);
+        // Arsip, bukan hapus permanen — pickup_items.category_id memakai FK restrict.
+        Route::delete('/{id}', [TrashCategoryController::class, 'destroy'])->middleware(['auth:sanctum', 'role:pengurus']);
+        Route::patch('/{id}/restore', [TrashCategoryController::class, 'restore'])->middleware(['auth:sanctum', 'role:pengurus']);
     });
 
     // Operasional bank sampah: penjemputan & timbang
@@ -129,7 +134,7 @@ Route::prefix('v1')->group(function () {
     // Dompet saldo anggota & penarikan tunai
     Route::prefix('wallet')->middleware('auth:sanctum')->group(function () {
         // Anggota: dompet sendiri (own-check di controller); pengurus: boleh query member
-        Route::get('/summary', [WalletController::class, 'summary'])->middleware('role:pengurus,anggota');
+        Route::get('/summary', [WalletController::class, 'summary'])->middleware('role:pengurus,petugas,anggota');
         Route::get('/mutations', [WalletController::class, 'mutations'])->middleware('role:pengurus,anggota');
         Route::post('/withdraw', [WalletController::class, 'withdraw'])->middleware('role:anggota');
         // Penarikan tunai oleh petugas/pengurus (saldo langsung terpotong, alur.md)

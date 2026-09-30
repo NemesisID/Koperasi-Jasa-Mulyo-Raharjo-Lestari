@@ -19,12 +19,12 @@ class TrashCategoryController extends Controller
     ) {}
 
     /**
-     * GET /api/v1/trash-categories (publik)
+     * GET /api/v1/trash-categories (publik) — ?trashed=1 (auth pengurus) untuk arsip.
      */
     public function index(Request $request): JsonResponse
     {
         $categories = $this->trashCategoryService->getCategories(
-            $request->only(['type', 'is_active']),
+            $request->only(['type', 'is_active', 'trashed']),
         );
 
         return response()->json([
@@ -113,6 +113,35 @@ class TrashCategoryController extends Controller
             'success' => true,
             'message' => 'Riwayat perubahan harga berhasil dimuat.',
             'data' => PriceHistoryResource::collection($this->trashCategoryService->getPriceHistory($id)),
+        ]);
+    }
+
+    /**
+     * DELETE /api/v1/trash-categories/{id} — arsipkan kategori, bukan hapus permanen
+     * (FK pickup_items.category_id restrict; riwayat timbangan tetap utuh).
+     */
+    public function destroy(int $id): JsonResponse
+    {
+        $this->trashCategoryService->deleteCategory($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kategori sampah berhasil diarsipkan. Riwayat timbangannya tetap tersimpan dan dapat dipulihkan.',
+            'data' => null,
+        ]);
+    }
+
+    /**
+     * PATCH /api/v1/trash-categories/{id}/restore
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $category = $this->trashCategoryService->restoreCategory($id);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kategori sampah berhasil dipulihkan.',
+            'data' => new TrashCategoryResource($category),
         ]);
     }
 }
