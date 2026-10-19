@@ -8,7 +8,7 @@
 </head>
 <body>
     <!-- URL relatif: benar di dev (/docs/...) maupun subfolder /be ( deploy /be/docs/...) -->
-    <script id="api-reference" data-url="openapi.json"></script>
+    <script id="api-reference" data-url="{{ asset('docs/openapi.json') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
 </body>
 </html>

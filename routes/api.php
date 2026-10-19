@@ -165,4 +165,63 @@ Route::prefix('v1')->group(function () {
         Route::get('/trash-volume', [ReportController::class, 'trashVolume']);
         Route::get('/export', [ReportController::class, 'export']);
     });
+
+    // ==========================================
+    // CMS & E-COMMERCE MODULE (PRD-2)
+    // ==========================================
+
+    // CMS Landing Page (Publik)
+    Route::prefix('cms')->group(function () {
+        Route::get('pages/{slug}', [\App\Http\Controllers\Api\v1\CmsController::class, 'getPage']);
+        Route::get('site-config', [\App\Http\Controllers\Api\v1\CmsController::class, 'getSiteConfig']);
+    });
+
+    // Katalog Produk & Layanan (Publik)
+    Route::prefix('products')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\v1\ProductController::class, 'index']);
+        Route::get('/{slug}', [\App\Http\Controllers\Api\v1\ProductController::class, 'show']);
+    });
+
+    // Keranjang Belanja (Publik / Guest / Authenticated)
+    Route::prefix('cart')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Api\v1\CartController::class, 'index']);
+        Route::post('items', [\App\Http\Controllers\Api\v1\CartController::class, 'addItem']);
+        Route::put('items/{id}', [\App\Http\Controllers\Api\v1\CartController::class, 'updateItem']);
+        Route::delete('items/{id}', [\App\Http\Controllers\Api\v1\CartController::class, 'removeItem']);
+    });
+
+    // Estimasi Pengiriman (Publik)
+    Route::prefix('shipping')->group(function () {
+        Route::post('quotes', [\App\Http\Controllers\Api\v1\ShippingController::class, 'quote']);
+    });
+
+    // Checkout & Transaksi Pemesanan (Publik / Guest / Authenticated)
+    Route::post('checkout/preview', [\App\Http\Controllers\Api\v1\OrderController::class, 'preview']);
+    Route::prefix('orders')->group(function () {
+        Route::post('/', [\App\Http\Controllers\Api\v1\OrderController::class, 'store']);
+        Route::get('/{id}', [\App\Http\Controllers\Api\v1\OrderController::class, 'show']);
+        Route::get('/{id}/invoice', [\App\Http\Controllers\Api\v1\OrderController::class, 'invoice']);
+        Route::post('/{id}/payment-proof', [\App\Http\Controllers\Api\v1\OrderController::class, 'uploadPaymentProof']);
+    });
+
+    // Admin CMS & E-Commerce Management
+    Route::prefix('admin')->middleware(['auth:sanctum', 'role:pengurus'])->group(function () {
+        // CMS Management
+        Route::post('cms/pages', [\App\Http\Controllers\Api\v1\CmsController::class, 'savePage']);
+        Route::post('cms/sections', [\App\Http\Controllers\Api\v1\CmsController::class, 'saveSection']);
+        Route::put('cms/site-config', [\App\Http\Controllers\Api\v1\CmsController::class, 'updateSiteConfig']);
+
+        // Product & Pricing Management
+        Route::post('products', [\App\Http\Controllers\Api\v1\ProductController::class, 'store']);
+        Route::put('products/{id}', [\App\Http\Controllers\Api\v1\ProductController::class, 'update']);
+        Route::put('products/{id}/prices', [\App\Http\Controllers\Api\v1\ProductController::class, 'updatePrices']);
+
+        // Shipping Rate Management
+        Route::get('shipping/rates', [\App\Http\Controllers\Api\v1\ShippingController::class, 'indexRates']);
+        Route::post('shipping/rates', [\App\Http\Controllers\Api\v1\ShippingController::class, 'storeRate']);
+
+        // Order Management
+        Route::patch('orders/{id}/status', [\App\Http\Controllers\Api\v1\OrderController::class, 'updateStatus']);
+    });
 });
+
