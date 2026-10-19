@@ -172,6 +172,7 @@ Route::prefix('v1')->group(function () {
 
     // CMS Landing Page (Publik)
     Route::prefix('cms')->group(function () {
+        Route::get('contents', [\App\Http\Controllers\Api\v1\CmsController::class, 'getContents']);
         Route::get('pages/{slug}', [\App\Http\Controllers\Api\v1\CmsController::class, 'getPage']);
         Route::get('site-config', [\App\Http\Controllers\Api\v1\CmsController::class, 'getSiteConfig']);
     });
@@ -207,8 +208,7 @@ Route::prefix('v1')->group(function () {
     // Admin CMS & E-Commerce Management
     Route::prefix('admin')->middleware(['auth:sanctum', 'role:pengurus'])->group(function () {
         // CMS Management
-        Route::post('cms/pages', [\App\Http\Controllers\Api\v1\CmsController::class, 'savePage']);
-        Route::post('cms/sections', [\App\Http\Controllers\Api\v1\CmsController::class, 'saveSection']);
+        Route::post('cms/contents', [\App\Http\Controllers\Api\v1\CmsController::class, 'saveContent']);
         Route::put('cms/site-config', [\App\Http\Controllers\Api\v1\CmsController::class, 'updateSiteConfig']);
 
         // Product & Pricing Management

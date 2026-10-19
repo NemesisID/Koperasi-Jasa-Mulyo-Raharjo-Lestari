@@ -140,5 +140,14 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]);
         }
+
+        // 5. Katalog Produk E-Commerce, CMS (Compro Content), Pengaturan & Pesanan
+        $this->call([
+            ProductSeeder::class,
+            ComproContentSeeder::class,
+            SiteSettingSeeder::class,
+            ShippingRateSeeder::class,
+            OrderSeeder::class,
+        ]);
     }
 }

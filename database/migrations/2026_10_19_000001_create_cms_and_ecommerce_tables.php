@@ -8,27 +8,18 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. CMS Pages & Sections
-        Schema::create('cms_pages', function (Blueprint $table) {
+        // 1. Company Profile Contents (compro_contents)
+        Schema::create('compro_contents', function (Blueprint $table) {
             $table->id();
-            $table->string('slug')->unique(); // e.g. 'home', 'about', 'services'
-            $table->string('title');
-            $table->text('meta_description')->nullable();
-            $table->boolean('is_published')->default(true);
-            $table->timestamps();
-        });
-
-        Schema::create('cms_sections', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('cms_page_id')->constrained('cms_pages')->cascadeOnDelete();
-            $table->string('key'); // e.g. 'hero', 'services', 'about', 'contact'
-            $table->string('title')->nullable();
-            $table->json('content'); // JSON data for the section
-            $table->integer('sort_order')->default(0);
-            $table->boolean('is_active')->default(true);
+            $table->string('page')->default('welcome'); // e.g. welcome, about
+            $table->string('section'); // e.g. hero, about, institusi, timeline, instagram, services
+            $table->string('key'); // e.g. judul, deskripsi, background_image, posts, etc.
+            $table->string('type')->default('text'); // text, richtext, image, url, repeater
+            $table->longText('value')->nullable(); // string, html, or json string for repeater
+            $table->integer('order')->default(1);
             $table->timestamps();
 
-            $table->index(['cms_page_id', 'sort_order']);
+            $table->index(['page', 'section', 'order']);
         });
 
         // 2. Site Settings (Key-Value configuration for contact, social media, payment accounts)
@@ -202,7 +193,6 @@ return new class extends Migration
         Schema::dropIfExists('products');
         Schema::dropIfExists('product_categories');
         Schema::dropIfExists('site_settings');
-        Schema::dropIfExists('cms_sections');
-        Schema::dropIfExists('cms_pages');
+        Schema::dropIfExists('compro_contents');
     }
 };

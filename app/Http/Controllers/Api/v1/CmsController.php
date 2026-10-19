@@ -3,8 +3,7 @@
 namespace App\Http\Controllers\Api\v1;
 
 use App\Http\Controllers\Controller;
-use App\Models\CmsPage;
-use App\Models\CmsSection;
+use App\Models\ComproContent;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,15 +11,58 @@ use Illuminate\Http\Request;
 class CmsController extends Controller
 {
     /**
-     * GET /api/v1/cms/pages/{slug} (Public)
+     * GET /api/v1/cms/contents (Public)
+     * Query params:
+     * - page: 'welcome' (default)
+     * - section: optional filter (e.g. 'hero')
      */
-    public function getPage(string $slug = 'home'): JsonResponse
+    public function getContents(Request $request): JsonResponse
     {
-        $page = CmsPage::with(['sections' => function ($q) {
-            $q->where('is_active', true)->orderBy('sort_order', 'asc');
-        }])->where('slug', $slug)->where('is_published', true)->first();
+        $page = $request->query('page', 'welcome');
+        $section = $request->query('section');
 
-        if (! $page) {
+        $query = ComproContent::where('page', $page)->orderBy('order', 'asc');
+
+        if ($section) {
+            $query->where('section', $section);
+        }
+
+        $rawContents = $query->get();
+
+        // Grouping per section agar sangat mudah dikonsumsi frontend SPA
+        $grouped = $rawContents->groupBy('section')->map(function ($items) {
+            $sectionData = [];
+            foreach ($items as $item) {
+                $sectionData[$item->key] = $item->parsed_value;
+            }
+            return $sectionData;
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Konten compro berhasil dimuat.',
+            'data' => [
+                'page' => $page,
+                'sections' => $grouped,
+                'raw' => $rawContents,
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/v1/cms/pages/{slug} (Public - Backward compatibility & SPA landing page)
+     * Support slug 'home', 'welcome', 'about', dsb.
+     */
+    public function getPage(string $slug = 'welcome'): JsonResponse
+    {
+        // Normalisasi slug: jika 'home' diarahkan ke 'welcome'
+        $pageName = in_array($slug, ['home', 'welcome']) ? 'welcome' : $slug;
+
+        $contents = ComproContent::where('page', $pageName)
+            ->orderBy('order', 'asc')
+            ->get();
+
+        if ($contents->isEmpty()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Halaman tidak ditemukan.',
@@ -28,21 +70,28 @@ class CmsController extends Controller
             ], 404);
         }
 
+        // Susun struktur sections agar kompatibel dengan SPA & dokumentasi
+        $sectionsGrouped = $contents->groupBy('section')->map(function ($items, $sectionName) {
+            $fields = [];
+            foreach ($items as $item) {
+                $fields[$item->key] = $item->parsed_value;
+            }
+
+            return [
+                'section' => $sectionName,
+                'title' => $fields['judul'] ?? ucfirst($sectionName),
+                'content' => $fields,
+                'items' => $items->values(),
+            ];
+        })->values();
+
         return response()->json([
             'success' => true,
             'message' => 'Konten halaman berhasil dimuat.',
             'data' => [
-                'id' => $page->id,
-                'slug' => $page->slug,
-                'title' => $page->title,
-                'meta_description' => $page->meta_description,
-                'sections' => $page->sections->map(fn ($sec) => [
-                    'id' => $sec->id,
-                    'key' => $sec->key,
-                    'title' => $sec->title,
-                    'content' => $sec->content,
-                    'sort_order' => $sec->sort_order,
-                ]),
+                'page' => $pageName,
+                'slug' => $slug,
+                'sections' => $sectionsGrouped,
             ],
         ]);
     }
@@ -70,62 +119,38 @@ class CmsController extends Controller
     }
 
     /**
-     * Admin: POST/PUT /api/v1/admin/cms/pages
+     * Admin: POST/PUT /api/v1/admin/cms/contents
      */
-    public function savePage(Request $request): JsonResponse
+    public function saveContent(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'slug' => 'required|string|max:100',
-            'title' => 'required|string|max:255',
-            'meta_description' => 'nullable|string',
-            'is_published' => 'boolean',
-        ]);
-
-        $page = CmsPage::updateOrCreate(
-            ['slug' => $validated['slug']],
-            $validated
-        );
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Halaman CMS berhasil disimpan.',
-            'data' => $page,
-        ]);
-    }
-
-    /**
-     * Admin: POST/PUT /api/v1/admin/cms/sections
-     */
-    public function saveSection(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'page_slug' => 'required|string|exists:cms_pages,slug',
+            'page' => 'required|string|max:100',
+            'section' => 'required|string|max:100',
             'key' => 'required|string|max:100',
-            'title' => 'nullable|string|max:255',
-            'content' => 'required|array',
-            'sort_order' => 'integer',
-            'is_active' => 'boolean',
+            'type' => 'required|string|in:text,richtext,image,url,repeater,json',
+            'value' => 'nullable',
+            'order' => 'integer',
         ]);
 
-        $page = CmsPage::where('slug', $validated['page_slug'])->firstOrFail();
+        $val = is_array($validated['value']) ? json_encode($validated['value']) : $validated['value'];
 
-        $section = CmsSection::updateOrCreate(
+        $content = ComproContent::updateOrCreate(
             [
-                'cms_page_id' => $page->id,
+                'page' => $validated['page'],
+                'section' => $validated['section'],
                 'key' => $validated['key'],
             ],
             [
-                'title' => $validated['title'] ?? null,
-                'content' => $validated['content'],
-                'sort_order' => $validated['sort_order'] ?? 0,
-                'is_active' => $validated['is_active'] ?? true,
+                'type' => $validated['type'],
+                'value' => $val,
+                'order' => $validated['order'] ?? 1,
             ]
         );
 
         return response()->json([
             'success' => true,
-            'message' => 'Section CMS berhasil diperbarui.',
-            'data' => $section,
+            'message' => 'Konten berhasil disimpan.',
+            'data' => $content,
         ]);
     }
 
